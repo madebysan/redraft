@@ -13,6 +13,10 @@ let package = Package(
             dependencies: ["HotKey"],
             path: "Sources/Companion",
             exclude: ["Resources/Info.plist", "Resources/AppIcon.icns"]
+        ),
+        .testTarget(
+            name: "CompanionTests",
+            dependencies: ["Companion"]
         )
     ]
 )

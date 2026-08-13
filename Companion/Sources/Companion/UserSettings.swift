@@ -108,7 +108,7 @@ final class UserSettings {
         var supportsImages: Bool
 
         var routeModel: String {
-            id.hasPrefix("~") ? id : "~\(id)"
+            UserSettings.canonicalFalModel(id)
         }
 
         var displayTitle: String {
@@ -221,7 +221,7 @@ final class UserSettings {
     static let defaultOpenAIModel = OpenAIAPI.defaultModelName
     static let defaultClaudeModel = ClaudeAPI.modelName
     static let defaultDeepSeekModel = "deepseek-v4-flash"
-    static let defaultFalModel = "~anthropic/claude-sonnet-latest"
+    static let defaultFalModel = "anthropic/claude-sonnet-5"
     static let defaultRemoteCatalogModelCount = defaultRemoteCatalogModels.count
     private static let currentSavedActionsTemplateVersion = 7
     private static let retiredDefaultActionIDs: Set<String> = ["my_voice_light"]
@@ -671,13 +671,13 @@ final class UserSettings {
 
     private static let defaultRemoteCatalogModels: [RemoteCatalogModel] = [
         RemoteCatalogModel(
-            id: "~anthropic/claude-sonnet-latest",
-            name: "Claude Sonnet Latest",
+            id: "anthropic/claude-sonnet-5",
+            name: "Claude Sonnet 5",
             supportsImages: true
         ),
         RemoteCatalogModel(
-            id: "~anthropic/claude-haiku-latest",
-            name: "Claude Haiku Latest",
+            id: "anthropic/claude-haiku-4.5",
+            name: "Claude Haiku 4.5",
             supportsImages: true
         ),
         RemoteCatalogModel(
@@ -715,7 +715,9 @@ final class UserSettings {
         var seen: Set<String> = []
         var normalized: [ModelRoute] = []
         for route in routes {
-            let model = route.model.trimmingCharacters(in: .whitespacesAndNewlines)
+            let model = route.provider == .fal
+                ? Self.canonicalFalModel(route.model)
+                : route.model.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !model.isEmpty else { continue }
             let id = Self.ModelRoute.makeID(provider: route.provider, model: model)
             guard !seen.contains(id) else { continue }
@@ -734,6 +736,20 @@ final class UserSettings {
             normalized.append(copy)
         }
         return normalized
+    }
+
+    static func canonicalFalModel(_ model: String) -> String {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutLegacyPrefix = trimmed.hasPrefix("~") ? String(trimmed.dropFirst()) : trimmed
+
+        switch withoutLegacyPrefix.lowercased() {
+        case "anthropic/claude-sonnet-latest":
+            return "anthropic/claude-sonnet-5"
+        case "anthropic/claude-haiku-latest":
+            return "anthropic/claude-haiku-4.5"
+        default:
+            return withoutLegacyPrefix
+        }
     }
 
     private func preferredLocalModels(_ models: [String]) -> [String] {

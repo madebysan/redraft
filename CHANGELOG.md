@@ -2,6 +2,14 @@
 
 All notable public changes to Companion are documented here.
 
+## [0.2.3] - 2026-08-13
+
+### Fixed
+
+- Restored fal/OpenRouter cloud generation after its model ID format changed.
+- Migrated existing remote routes away from the retired `~` prefix automatically.
+- Replaced retired Claude aliases with current OpenRouter model IDs.
+
 ## [0.2.2] - 2026-07-03
 
 Initial public release.
