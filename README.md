@@ -3,7 +3,7 @@
 <p>Select text in any Mac app, run a writing command, and replace it in place.<br>
 Use your own cloud API key or a local model.</p>
 
-<p><strong>Version 0.2.2</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.2.3</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
