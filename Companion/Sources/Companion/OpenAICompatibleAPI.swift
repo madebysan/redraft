@@ -38,7 +38,8 @@ final class OpenAICompatibleAPI {
         images: [PromptImageAttachment] = [],
         instructionRole: String = "system",
         includeTemperature: Bool = true,
-        maxTokensParameter: String? = "max_tokens"
+        maxTokensParameter: String? = "max_tokens",
+        disableReasoning: Bool = false
     ) async throws -> String {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -56,6 +57,7 @@ final class OpenAICompatibleAPI {
         if includeTemperature {
             body["temperature"] = 0.3
         }
+        if disableReasoning { body["reasoning"] = ["enabled": false] }
         if let maxTokensParameter {
             body[maxTokensParameter] = 4096
         }
@@ -78,13 +80,7 @@ final class OpenAICompatibleAPI {
             throw APIError.requestFailed(providerName, "HTTP \(httpResponse.statusCode): \(errorBody)")
         }
 
-        let responseJSON = try parseJSONResponse(data, providerName: providerName)
-        let trimmed = responseJSON.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            throw APIError.emptyResponse(providerName)
-        }
-
-        return trimmed
+        return try CompletionValidator.openAI(data)
     }
 
     private func userContent(text: String, images: [PromptImageAttachment]) -> Any {
@@ -106,23 +102,6 @@ final class OpenAICompatibleAPI {
         return content
     }
 
-    private func parseJSONResponse(_ data: Data, providerName: String) throws -> String {
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw APIError.invalidResponse(providerName)
-        }
-
-        if let text = completionText(from: json) {
-            return text
-        }
-
-        if let wrappedData = json["data"] as? [String: Any],
-           let text = completionText(from: wrappedData) {
-            return text
-        }
-
-        throw APIError.invalidResponse(providerName)
-    }
-
     private func errorMessage(from data: Data) -> String {
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             if let error = json["error"] as? [String: Any],
@@ -139,15 +118,6 @@ final class OpenAICompatibleAPI {
         return raw.truncatedForDisplay()
     }
 
-    private func completionText(from json: [String: Any]) -> String? {
-        guard let choices = json["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any] else {
-            return nil
-        }
-
-        return message["content"] as? String
-    }
 }
 
 private extension String {

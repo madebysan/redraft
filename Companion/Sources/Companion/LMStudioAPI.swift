@@ -71,20 +71,7 @@ final class LMStudioAPI {
             throw APIError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
         }
 
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let resultText = message["content"] as? String else {
-            throw APIError.invalidResponse
-        }
-
-        let trimmed = resultText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            throw APIError.emptyResponse
-        }
-
-        return trimmed
+        return try CompletionValidator.openAI(data)
     }
 
     private func userContent(text: String, images: [PromptImageAttachment]) -> Any {

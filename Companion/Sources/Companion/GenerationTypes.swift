@@ -45,6 +45,8 @@ struct GenerationResult {
 extension UserSettings.Provider {
     func configuredModelName(settings: UserSettings = .shared) -> String {
         switch self {
+        case .openRouter:
+            return UserSettings.recommendedWritingRoute.model
         case .openAI:
             return settings.openAIModel
         case .claude:
@@ -70,6 +72,8 @@ extension UserSettings.Provider {
 
     func supportsImageInput(settings: UserSettings = .shared) -> Bool {
         switch self {
+        case .openRouter:
+            return true
         case .openAI:
             return Self.isKnownVisionModel(settings.openAIModel)
         case .claude:

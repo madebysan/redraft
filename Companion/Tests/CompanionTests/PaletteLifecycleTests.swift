@@ -1,0 +1,64 @@
+import AppKit
+import XCTest
+@testable import Companion
+
+final class PaletteLifecycleTests: XCTestCase {
+    @MainActor
+    func testCapsuleHasTwoActionsAndPencilOpensFocusedInput() {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        palette.show(selectedText: "A sample selection")
+        func buttons(in view: NSView) -> [NSButton] {
+            (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons(in: $0) }
+        }
+        let actions = buttons(in: palette.window!.contentView!)
+        XCTAssertEqual(actions.count, 2)
+        XCTAssertTrue(actions.allSatisfy { $0.focusRingType == .none })
+        XCTAssertEqual(palette.window!.frame.width, 100) // 80 pt glass + shadow inset.
+        let pencil = actions.first { $0.toolTip == "Write an instruction (Tab)" }
+        XCTAssertNotNil(pencil)
+        pencil?.performClick(nil)
+        XCTAssertEqual(palette.window!.frame.width, 340)
+        XCTAssertNotNil(palette.window!.firstResponder as? NSTextView)
+    }
+
+    @MainActor
+    func testCustomInputReleasesFocusBeforeReplacement() {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        palette.show(selectedText: "A sample selection")
+        palette.showPreviewInstruction("Translate into Spanish")
+        XCTAssertNotNil(palette.window!.firstResponder as? NSTextView)
+        palette.prepareForReplacement()
+        XCTAssertFalse(palette.isPaletteVisible)
+        XCTAssertNil(palette.window!.firstResponder as? NSTextView)
+        palette.showSuccess()
+        XCTAssertTrue(palette.isPaletteVisible)
+    }
+
+    @MainActor
+    func testLoadingAndCompletionStayIconSized() {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        palette.show(selectedText: "A sample selection")
+        palette.showRunning(title: "Fix Grammar")
+        XCTAssertEqual(palette.window!.frame.size, NSSize(width: 50, height: 50))
+        palette.showSuccess()
+        XCTAssertEqual(palette.window!.frame.size, NSSize(width: 50, height: 50))
+        palette.showError("Try again")
+        XCTAssertEqual(palette.window!.frame.size, NSSize(width: 50, height: 50))
+    }
+
+    @MainActor
+    func testPreviousSuccessDoesNotDismissReopenedPalette() async throws {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        palette.show(selectedText: "A sample selection")
+        palette.showSuccess()
+        palette.show(selectedText: "A new selection")
+
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+
+        XCTAssertTrue(palette.isPaletteVisible, "An old completion must not close a new command.")
+    }
+}

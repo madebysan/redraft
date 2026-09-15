@@ -3,7 +3,7 @@
 <p>Select text in any Mac app, run a writing command, and replace it in place.<br>
 Use your own cloud API key or a local model.</p>
 
-<p><strong>Version 0.2.3</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.3.0</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
@@ -14,29 +14,31 @@ Use your own cloud API key or a local model.</p>
 
 <p><a href="https://github.com/madebysan/companion/releases/latest">Download Companion</a></p>
 
-![Companion command palette](assets/social-preview.png)
+![Companion Capsule](assets/screenshots/capsule.png)
 
-Companion is a menu bar app for quick writing tasks in Mail, Notes, Notion, Slack, browsers, code editors, and most places where you can select or enter text. Run a saved action such as "Fix Grammar" or "Shorten Text," or type a one-off instruction when the edit is specific.
-
-https://github.com/user-attachments/assets/dff2816f-f1be-4334-ae09-69ea52ab66cf
+Companion is a menu bar app for quick writing tasks in Mail, Notes, Notion, Slack, browsers, code editors, and most places where you can select or enter text. Its small glass capsule offers two actions: fix grammar or write an instruction.
 
 ## How it works
 
-Select text in another app and press `Cmd + Shift + E`. Choose a saved action or type an instruction such as `make this warmer and shorter`. Companion sends the request through the route you chose, replaces the selection, and keeps the result on your clipboard.
+Select text in another app and press `Cmd + Shift + E`. Press Return or click the grammar icon to fix the text. Press Tab or click the pencil to type an instruction such as `make this warmer and shorter`, then Return to run it. Companion uses the model configured in Settings, replaces the selection, and keeps the result on your clipboard. Loading and completion use a small glass indicator that disappears when finished.
 
-If nothing is selected, the instruction creates new text and inserts it at the cursor. Saved actions can handle recurring work such as grammar fixes, shortening, tone changes, or turning rough notes into an email.
+If nothing is selected, use the instruction field to create new text. Escape returns from the field to the capsule; Escape again closes it. Open Settings through the menu bar or `Cmd + ,`. Writing settings preserve your grammar prompt and model choices; retired presets are kept in a recovery export.
 
 ## Models and privacy
 
-Each action can use a local LM Studio model, a fal/OpenRouter route, or a direct OpenAI, Anthropic, or DeepSeek connection. Settings is where you add keys, choose the models that appear in the picker, and edit saved actions.
+Fix Grammar and custom instructions default to paid DeepSeek V4.1 Flash through direct OpenRouter, with reasoning disabled for quick rewrites. Settings → Writing contains their model choices and the grammar prompt. The Capsule and macOS Services use the same grammar configuration. Settings → Providers can reapply the recommended model to both operations without changing the prompt. Local fallback uses this same inexpensive route, never an arbitrary configured frontier model.
 
-![Companion direct provider settings](assets/screenshots/settings-providers.png)
+Optional routes include LM Studio, the legacy fal gateway, OpenAI, Anthropic, and DeepSeek. The remote model catalog uses direct OpenRouter and refreshes when it is over 24 hours old and the Providers pane opens. A failed refresh preserves the saved catalog.
 
-![Companion saved action settings](assets/screenshots/settings-actions.png)
+![Companion Writing settings](assets/screenshots/settings-writing.png)
 
-![Companion local model and routing settings](assets/screenshots/settings-local-routing.png)
+The former saved-action presets and editor have been retired. Your grammar prompt/model and custom-instruction route migrate to the focused Writing settings. Old presets are exported to a readable JSON recovery file before their preferences are removed; Writing includes a button to reveal that file. If the export fails, old preferences remain intact.
 
-There is no Companion server, account, analytics, or telemetry. LM Studio requests stay on your Mac. Cloud requests send the selected text and instruction directly to the provider route you chose. Companion stores settings, generated results, and routing metadata locally; it does not retain the original selected text or image bytes in history.
+There is no Companion server, account, analytics, or telemetry. LM Studio requests stay on your Mac. Cloud requests send the selected text and instruction directly to the provider route you chose. Provider keys are stored in macOS Keychain. Existing preference keys are removed only after secure storage succeeds; a migration failure leaves the old value recoverable and reports an error.
+
+Companion uses the target editor's native Paste operation so its normal Undo command applies. The rewrite remains on the clipboard after Undo. A changed or unverifiable target, or an incomplete model response, leaves the original text untouched and provides the generated text for manual recovery. Undo depends on the receiving editor supporting normal paste undo.
+
+History saves run off the UI thread, with one file per result. The latest 500 entries are displayed; older entries and previous history archives remain on disk. Clear History moves current records to a recovery archive. History contains results and routing metadata, not the original selection or image bytes.
 
 ## Install
 
@@ -56,11 +58,15 @@ swift build -c release --package-path Companion --arch arm64 --arch x86_64
 ./script/build_and_run.sh --verify
 ```
 
-To produce a signed DMG on a configured development Mac, run `./script/build_dmg.sh`. Add `--notarize` for the public release path.
+To produce a signed DMG on a configured development Mac, run `./script/build_dmg.sh --notarize`. This notarizes and staples the app and disk image, verifies Gatekeeper acceptance, and copies the DMG to the Desktop. Packaging does not replace the installed app. Existing versioned artifacts are never overwritten.
 
 Companion requires macOS 13 or later on Apple Silicon or Intel. LM Studio and cloud provider keys are optional; at least one local or remote model route is required to generate text.
 
 ## Tech stack
+
+Development notes: [interface rules](DESIGN.md).
+
+For an isolated local preview, run `./script/build_and_run.sh --preview`.
 
 - Swift and AppKit
 - Swift Package Manager

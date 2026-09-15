@@ -61,18 +61,7 @@ final class ClaudeAPI {
             throw APIError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
         }
 
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = json["content"] as? [[String: Any]],
-              let firstBlock = content.first,
-              let resultText = firstBlock["text"] as? String else {
-            throw APIError.invalidResponse
-        }
-
-        guard !resultText.isEmpty else {
-            throw APIError.emptyResponse
-        }
-
-        return resultText
+        return try CompletionValidator.anthropic(data)
     }
 
     private func userContent(text: String, images: [PromptImageAttachment]) -> Any {

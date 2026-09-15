@@ -25,9 +25,6 @@ final class ServiceProvider: NSObject {
             TextGrabber.shared.onStatusChange?(.rewriting)
         }
 
-        // Services is invoked from the "Fix Grammar" context menu, so use fix grammar mode
-        let mode = UserSettings.RewriteMode.fixGrammar
-
         // Dispatch synchronously (Services expects a synchronous return)
         let semaphore = DispatchSemaphore(value: 0)
         var rewritten: String?
@@ -35,7 +32,7 @@ final class ServiceProvider: NSObject {
 
         Task {
             do {
-                rewritten = try await RewriteDispatcher.shared.rewrite(text, mode: mode)
+                rewritten = try await RewriteDispatcher.shared.generateGrammar(text).text
             } catch {
                 apiError = error
             }
@@ -72,6 +69,8 @@ final class ServiceProvider: NSObject {
         // Write the rewritten text back — macOS replaces the selection with this
         pasteboard.clearContents()
         pasteboard.setString(rewritten, forType: .string)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(rewritten, forType: .string)
 
         Task { @MainActor in
             TextGrabber.shared.onStatusChange?(.done)

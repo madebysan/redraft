@@ -11,7 +11,7 @@ private let settingsMinimumWindowSize = NSSize(width: 700, height: 420)
 private let settingsPreferredMaximumWindowSize = NSSize(width: 780, height: 620)
 private let settingsWindowScreenMargin: CGFloat = 64
 
-// Settings window with provider routing, saved actions, shortcut, permissions, and launch behavior.
+// Settings window with provider routing, writing, shortcut, permissions, and launch behavior.
 final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private struct SettingsPaneItem {
         let title: String
@@ -20,18 +20,16 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     }
 
     private var openAIAPIKeyField: NSSecureTextField!
+    private var openRouterAPIKeyField: NSSecureTextField!
+    private var isLoadingRemoteCatalog = false
     private var openAIModelField: NSTextField!
     private var claudeAPIKeyField: NSSecureTextField!
     private var claudeModelField: NSTextField!
     private var deepSeekAPIKeyField: NSSecureTextField!
     private var deepSeekModelField: NSTextField!
     private var falAPIKeyField: NSSecureTextField!
-    private var actionPopup: NSPopUpButton!
-    private var actionNameField: NSTextField!
-    private var actionRoutePopup: NSPopUpButton!
+    private var grammarRoutePopup: NSPopUpButton!
     private var promptField: NSTextView!
-    private var actions: [UserSettings.SavedAction] = []
-    private var selectedActionIndex = 0
     private var modelRoutes: [UserSettings.ModelRoute] = []
     private var remoteCatalogModels: [UserSettings.RemoteCatalogModel] = []
     private var visibleRemoteCatalogModels: [UserSettings.RemoteCatalogModel] = []
@@ -55,6 +53,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private var paneItems: [SettingsPaneItem] = []
     private var currentPaneConstraints: [NSLayoutConstraint] = []
     private var historyEntries: [GenerationHistoryStore.Entry] = []
+    private var historyLoadTask: Task<Void, Never>?
     private var historyTable: NSTableView!
     private var historyResultView: NSTextView!
     private var historyMetadataLabel: NSTextField!
@@ -88,14 +87,13 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        actions = UserSettings.shared.savedActions
         modelRoutes = UserSettings.shared.configuredModelRoutes
         remoteCatalogModels = UserSettings.shared.remoteCatalogModels
 
         paneItems = [
             SettingsPaneItem(title: "General", symbolName: "gearshape", view: makeGeneralPane()),
             SettingsPaneItem(title: "Providers", symbolName: "network", view: makeProvidersPane()),
-            SettingsPaneItem(title: "Actions", symbolName: "text.badge.star", view: makeActionsPane()),
+            SettingsPaneItem(title: "Writing", symbolName: "pencil", view: makeWritingPane()),
             SettingsPaneItem(title: "History", symbolName: "clock.arrow.circlepath", view: makeHistoryPane()),
             SettingsPaneItem(title: "Shortcut", symbolName: "keyboard", view: makeShortcutPane()),
             SettingsPaneItem(title: "Permissions", symbolName: "hand.raised", view: makePermissionsPane()),
@@ -176,6 +174,10 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         ]
         NSLayoutConstraint.activate(currentPaneConstraints)
         resetScrollPositionIfNeeded(for: pane)
+        if paneItems[index].title == "Providers", UserSettings.shared.remoteCatalogNeedsRefresh() {
+            Task { @MainActor in await self.loadRemoteModelCatalog() }
+        }
+        if paneItems[index].title == "History" { reloadHistory(selectFirst: true) }
     }
 
     private func fitWindowToVisibleScreen() {
@@ -270,9 +272,19 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     private func makeProvidersPane() -> NSView {
         makePane { stack in
+            addSection("Writing model", help: "Paid DeepSeek V4.1 Flash through OpenRouter. The recommended model for grammar, custom instructions, and local fallback.", to: stack) { section in
+                openRouterAPIKeyField = makeSecureField(value: UserSettings.shared.openRouterAPIKey, placeholder: "OPENROUTER_API_KEY")
+                openRouterAPIKeyField.target = self
+                openRouterAPIKeyField.action = #selector(openRouterAPIKeyChanged)
+                openRouterAPIKeyField.delegate = self
+                section.addArrangedSubview(makeSettingsRow(label: "OpenRouter key", control: openRouterAPIKeyField))
+                section.addArrangedSubview(makeSmallButton("Use DeepSeek Flash for both actions", action: #selector(useRecommendedWritingModel)))
+                section.addArrangedSubview(makeHelpLabel("Keys are stored in macOS Keychain. Your grammar prompt is preserved."))
+                if let error = UserSettings.shared.credentialStorageError { section.addArrangedSubview(makeHelpLabel(error)) }
+            }
             addSection(
                 "Direct Providers",
-                help: "Optional cloud routes. Add a key for the provider you already use, then choose that route in Actions or the palette.",
+                help: "Optional cloud routes. Add a key for the provider you already use, then choose the models in Writing.",
                 to: stack
             ) { section in
                 openAIAPIKeyField = makeSecureField(
@@ -339,7 +351,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
             addSection(
                 "Remote Provider",
-                help: "One fal key can reach OpenRouter models from Claude, DeepSeek, Gemini, OpenAI, and others.",
+                help: "Optional legacy fal gateway. Existing fal actions use fal billing; the writing default uses direct OpenRouter.",
                 to: stack
             ) { section in
                 falAPIKeyField = makeSecureField(
@@ -358,7 +370,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
             addSection(
                 "Remote Models",
-                help: "Enable the fal/OpenRouter models you want available in the palette and saved-action model picker.",
+                help: "Enable direct OpenRouter models for the palette. Refreshes daily when this pane opens.",
                 to: stack
             ) { section in
                 refreshRemoteModelsButton = makeSmallButton("Refresh", action: #selector(refreshRemoteModels))
@@ -411,11 +423,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 section.addArrangedSubview(remoteCatalogStatusLabel)
 
                 refreshRemoteCatalogTable()
-                if remoteCatalogModels.count <= UserSettings.defaultRemoteCatalogModelCount {
-                    Task { @MainActor in
-                        await self.loadRemoteModelCatalog()
-                    }
-                }
             }
 
             addSection(
@@ -461,76 +468,38 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 section.addArrangedSubview(lmStudioStatusLabel)
             }
 
-            addSection(
-                "Routing",
-                help: "Saved actions can use a specific model route. One-off prompts use this default.",
-                to: stack
-            ) { section in
-                customPromptRoutePopup = makeRoutePopup(selectedRouteID: UserSettings.shared.customPromptRouteID)
-                customPromptRoutePopup.target = self
-                customPromptRoutePopup.action = #selector(customPromptRouteChanged)
-                section.addArrangedSubview(makeSettingsRow(label: "Custom prompts", control: customPromptRoutePopup))
 
-                fallbackCheckbox = NSButton(
-                    checkboxWithTitle: "Use a remote model as fallback when the local model is unavailable",
-                    target: self,
-                    action: #selector(toggleFallback)
-                )
-                fallbackCheckbox.state = UserSettings.shared.fallbackToClaude ? .on : .off
-                section.addArrangedSubview(fallbackCheckbox)
-            }
         }
     }
 
-    private func makeActionsPane() -> NSView {
+    private func makeWritingPane() -> NSView {
         makePane { stack in
-            addSection(
-                "Saved Actions",
-                help: "These appear in the command palette. Select an action to edit its name, model route, and prompt.",
-                to: stack
-            ) { section in
-                actionPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-                actionPopup.target = self
-                actionPopup.action = #selector(actionChanged)
-                actionPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-                let actionPickerControl = NSStackView()
-                actionPickerControl.orientation = .horizontal
-                actionPickerControl.alignment = .centerY
-                actionPickerControl.spacing = 8
-                actionPickerControl.addArrangedSubview(actionPopup)
-                actionPickerControl.addArrangedSubview(makeSmallButton("Add", action: #selector(addAction)))
-                actionPickerControl.addArrangedSubview(makeSmallButton("Remove", action: #selector(removeAction)))
-                actionPickerControl.addArrangedSubview(makeSmallButton("Up", action: #selector(moveActionUp)))
-                actionPickerControl.addArrangedSubview(makeSmallButton("Down", action: #selector(moveActionDown)))
-                section.addArrangedSubview(makeSettingsRow(label: "Action", control: actionPickerControl))
-
-                actionNameField = makeTextField(value: "", placeholder: "Action name", monospaced: false)
-                actionNameField.target = self
-                actionNameField.action = #selector(actionNameChanged)
-                actionNameField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "Name", control: actionNameField))
-
-                actionRoutePopup = makeRoutePopup(selectedRouteID: actions.first?.routeID)
-                actionRoutePopup.target = self
-                actionRoutePopup.action = #selector(actionRouteChanged)
-                section.addArrangedSubview(makeSettingsRow(label: "Model", control: actionRoutePopup))
-
-                let promptLabel = makeRowLabel("Prompt")
-                let promptColumn = NSStackView()
-                promptColumn.orientation = .vertical
-                promptColumn.alignment = .width
-                promptColumn.spacing = 8
-                promptColumn.widthAnchor.constraint(greaterThanOrEqualToConstant: 330).isActive = true
-
-                let promptScroll = NSScrollView(frame: .zero)
-                promptScroll.translatesAutoresizingMaskIntoConstraints = false
-                promptScroll.hasVerticalScroller = true
-                promptScroll.borderType = .bezelBorder
-                promptScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 330).isActive = true
-
+            if let error = UserSettings.shared.writingMigrationError {
+                let warning = makeHelpLabel(error)
+                warning.textColor = .systemOrange
+                stack.addArrangedSubview(warning)
+            }
+            addSection("Models", help: "Choose a model for each of the Capsule's two actions. Add provider keys in Providers.", to: stack) { section in
+                grammarRoutePopup = makeRoutePopup(selectedRouteID: UserSettings.shared.grammarRouteID)
+                grammarRoutePopup.target = self
+                grammarRoutePopup.action = #selector(grammarRouteChanged)
+                section.addArrangedSubview(makeSettingsRow(label: "Fix Grammar", control: grammarRoutePopup))
+                customPromptRoutePopup = makeRoutePopup(selectedRouteID: UserSettings.shared.customPromptRouteID)
+                customPromptRoutePopup.target = self
+                customPromptRoutePopup.action = #selector(customPromptRouteChanged)
+                section.addArrangedSubview(makeSettingsRow(label: "Custom instruction", control: customPromptRoutePopup))
+                fallbackCheckbox = NSButton(checkboxWithTitle: "Use DeepSeek Flash if the local model is unavailable",
+                    target: self, action: #selector(toggleFallback))
+                fallbackCheckbox.state = UserSettings.shared.fallbackToClaude ? .on : .off
+                section.addArrangedSubview(fallbackCheckbox)
+            }
+            addSection("Grammar prompt", help: "Used by both the Capsule and macOS Services → Fix Grammar. Custom instructions come from what you type in the Capsule.", to: stack) { section in
+                let scroll = NSScrollView()
+                scroll.translatesAutoresizingMaskIntoConstraints = false
+                scroll.hasVerticalScroller = true
+                scroll.borderType = .bezelBorder
                 promptField = NSTextView(frame: .zero)
-                promptField.string = ""
+                promptField.string = UserSettings.shared.grammarPrompt
                 promptField.font = .systemFont(ofSize: 13)
                 promptField.isRichText = false
                 promptField.isAutomaticQuoteSubstitutionEnabled = false
@@ -539,26 +508,16 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 promptField.isVerticallyResizable = true
                 promptField.isHorizontallyResizable = false
                 promptField.textContainer?.widthTracksTextView = true
+                promptField.setAccessibilityLabel("Grammar prompt")
                 promptField.delegate = self
-                promptScroll.documentView = promptField
-                promptColumn.addArrangedSubview(promptScroll)
-                promptScroll.heightAnchor.constraint(equalToConstant: 190).isActive = true
-
-                let resetPromptButton = makeSmallButton("Reset to Default", action: #selector(resetPrompt))
-                resetPromptButton.setContentHuggingPriority(.required, for: .horizontal)
-                promptColumn.addArrangedSubview(resetPromptButton)
-
-                let promptRow = NSStackView()
-                promptRow.orientation = .horizontal
-                promptRow.alignment = .top
-                promptRow.spacing = 10
-                promptRow.addArrangedSubview(promptLabel)
-                promptRow.addArrangedSubview(promptColumn)
-                promptColumn.setContentHuggingPriority(.defaultLow, for: .horizontal)
-                section.addArrangedSubview(promptRow)
-                promptRow.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
-
-                refreshActionEditor()
+                scroll.documentView = promptField
+                section.addArrangedSubview(scroll)
+                scroll.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
+                scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
+                section.addArrangedSubview(makeSmallButton("Reset grammar prompt", action: #selector(resetPrompt)))
+            }
+            if UserSettings.shared.retiredActionsRecoveryURL != nil {
+                stack.addArrangedSubview(makeSmallButton("Show recovered action presets", action: #selector(showRecoveredActions)))
             }
         }
     }
@@ -567,10 +526,10 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         makePane { stack in
             addSection(
                 "Generated Text History",
-                help: "Companion saves successful generated results locally so you can recover text if paste fails. Source text and image bytes are not stored.",
+                help: "The latest 500 results are shown. Older results stay on this Mac. Source text and image bytes are not stored.",
                 to: stack
             ) { section in
-                historyEntries = GenerationHistoryStore.shared.entries()
+                historyEntries = []
 
                 let buttonRow = NSStackView()
                 buttonRow.orientation = .horizontal
@@ -895,10 +854,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     private func refreshRoutePopups() {
         populateRoutePopup(customPromptRoutePopup, selectedRouteID: UserSettings.shared.customPromptRouteID)
-        let selectedActionRouteID = actions.indices.contains(selectedActionIndex)
-            ? actions[selectedActionIndex].routeID
-            : nil
-        populateRoutePopup(actionRoutePopup, selectedRouteID: selectedActionRouteID)
+        populateRoutePopup(grammarRoutePopup, selectedRouteID: UserSettings.shared.grammarRouteID)
     }
 
     private func renderPermissionRows() {
@@ -1020,24 +976,44 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     @objc private func clearHistory() {
         let alert = NSAlert()
         alert.messageText = "Clear generated text history?"
-        alert.informativeText = "This deletes all saved Companion history entries from this Mac. This cannot be undone."
+        alert.informativeText = "This clears the visible history. A recovery archive stays in Companion's Application Support folder."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Clear History")
         alert.addButton(withTitle: "Cancel")
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        GenerationHistoryStore.shared.clear()
-        reloadHistory(selectFirst: false)
+        historyLoadTask?.cancel()
+        Task { @MainActor in
+            do {
+                try await GenerationHistoryStore.shared.clear()
+                reloadHistory(selectFirst: false)
+            } catch { showStorageError("History couldn't be cleared. Your saved files are still on this Mac.") }
+        }
     }
 
     private func reloadHistory(selectFirst: Bool) {
         guard historyTable != nil else { return }
-        historyEntries = GenerationHistoryStore.shared.entries()
-        historyTable.reloadData()
-        if selectFirst, !historyEntries.isEmpty {
-            historyTable.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        historyLoadTask?.cancel()
+        historyLoadTask = Task { @MainActor in
+            do {
+                let entries = try await GenerationHistoryStore.shared.entries()
+                try Task.checkCancellation()
+                historyEntries = entries
+                historyTable.reloadData()
+                if selectFirst, !historyEntries.isEmpty {
+                    historyTable.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+                }
+                updateHistoryDetail()
+            } catch is CancellationError { }
+            catch { showStorageError("History couldn't be read. Existing files have been preserved.") }
         }
-        updateHistoryDetail()
+    }
+
+    private func showStorageError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Couldn't save changes"
+        alert.informativeText = message
+        alert.runModal()
     }
 
     private func updateHistoryDetail() {
@@ -1077,6 +1053,9 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     @MainActor
     private func loadRemoteModelCatalog() async {
+        guard !isLoadingRemoteCatalog else { return }
+        isLoadingRemoteCatalog = true
+        defer { isLoadingRemoteCatalog = false }
         refreshRemoteModelsButton.isEnabled = false
         remoteCatalogStatusLabel.stringValue = "Loading OpenRouter models..."
         remoteCatalogStatusLabel.textColor = .tertiaryLabelColor
@@ -1148,7 +1127,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     }
 
     private func routeID(for catalogModel: UserSettings.RemoteCatalogModel) -> String {
-        UserSettings.ModelRoute.makeID(provider: .fal, model: catalogModel.routeModel)
+        UserSettings.ModelRoute.makeID(provider: .openRouter, model: catalogModel.id)
     }
 
     private func isRemoteModelEnabled(_ catalogModel: UserSettings.RemoteCatalogModel) -> Bool {
@@ -1167,8 +1146,8 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             modelRoutes.append(UserSettings.ModelRoute(
                 id: id,
                 name: catalogModel.displayTitle,
-                provider: .fal,
-                model: catalogModel.routeModel,
+                provider: .openRouter,
+                model: catalogModel.id,
                 supportsImages: catalogModel.supportsImages
             ))
         } else if modelRoutes.count > 1 {
@@ -1192,11 +1171,13 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     @objc private func falAPIKeyChanged() {
         UserSettings.shared.falAPIKey = falAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        reportCredentialError()
         refreshRoutePopups()
     }
 
     @objc private func openAIAPIKeyChanged() {
         UserSettings.shared.openAIAPIKey = openAIAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        reportCredentialError()
         refreshRoutePopups()
     }
 
@@ -1207,6 +1188,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     @objc private func claudeAPIKeyChanged() {
         UserSettings.shared.apiKey = claudeAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        reportCredentialError()
         refreshRoutePopups()
     }
 
@@ -1217,12 +1199,30 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     @objc private func deepSeekAPIKeyChanged() {
         UserSettings.shared.deepSeekAPIKey = deepSeekAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        reportCredentialError()
         refreshRoutePopups()
     }
 
     @objc private func deepSeekModelChanged() {
         UserSettings.shared.deepSeekModel = deepSeekModelField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         refreshRoutePopups()
+    }
+
+    private func reportCredentialError() {
+        if let error = UserSettings.shared.credentialStorageError { showStorageError(error) }
+    }
+
+    @objc private func openRouterAPIKeyChanged() {
+        UserSettings.shared.openRouterAPIKey = openRouterAPIKeyField.stringValue
+        reportCredentialError()
+        refreshRoutePopups()
+    }
+
+    @objc private func useRecommendedWritingModel() {
+        UserSettings.shared.useRecommendedWritingModel()
+        modelRoutes = UserSettings.shared.configuredModelRoutes
+        refreshRoutePopups()
+        refreshRemoteCatalogTable()
     }
 
     @objc private func lmStudioURLChanged() {
@@ -1319,121 +1319,19 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         UserSettings.shared.fallbackToClaude = fallbackCheckbox.state == .on
     }
 
-    @objc private func actionChanged() {
-        saveCurrentAction()
-        selectedActionIndex = actionPopup.indexOfSelectedItem
-        refreshActionEditor()
-    }
-
-    @objc private func actionNameChanged() {
-        guard actions.indices.contains(selectedActionIndex) else { return }
-        let name = actionNameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        actions[selectedActionIndex].name = name.isEmpty ? "Untitled Action" : name
-        saveActions()
-        refreshActionPopup()
-    }
-
-    @objc private func actionRouteChanged() {
-        guard actions.indices.contains(selectedActionIndex) else { return }
-        guard let routeID = selectedRouteID(from: actionRoutePopup),
-              let route = UserSettings.shared.modelRoute(for: routeID) else { return }
-        actions[selectedActionIndex].routeID = routeID
-        actions[selectedActionIndex].provider = route.provider
-        saveActions()
-    }
-
-    @objc private func addAction() {
-        saveCurrentAction()
-        let action = UserSettings.SavedAction(
-            id: UUID().uuidString,
-            name: "New Action",
-            prompt: "Rewrite the selected text. Return only the rewritten text.",
-            provider: UserSettings.shared.customPromptProvider,
-            symbolName: "wand.and.stars",
-            routeID: UserSettings.shared.customPromptRouteID
-        )
-        actions.append(action)
-        selectedActionIndex = actions.count - 1
-        saveActions()
-        refreshActionEditor()
-    }
-
-    @objc private func removeAction() {
-        guard actions.count > 1, actions.indices.contains(selectedActionIndex) else { return }
-        actions.remove(at: selectedActionIndex)
-        selectedActionIndex = min(selectedActionIndex, actions.count - 1)
-        saveActions()
-        refreshActionEditor()
-    }
-
-    @objc private func moveActionUp() {
-        guard selectedActionIndex > 0, actions.indices.contains(selectedActionIndex) else { return }
-        saveCurrentAction()
-        actions.swapAt(selectedActionIndex, selectedActionIndex - 1)
-        selectedActionIndex -= 1
-        saveActions()
-        refreshActionEditor()
-    }
-
-    @objc private func moveActionDown() {
-        guard selectedActionIndex < actions.count - 1, actions.indices.contains(selectedActionIndex) else { return }
-        saveCurrentAction()
-        actions.swapAt(selectedActionIndex, selectedActionIndex + 1)
-        selectedActionIndex += 1
-        saveActions()
-        refreshActionEditor()
+    @objc private func grammarRouteChanged() {
+        guard let routeID = selectedRouteID(from: grammarRoutePopup) else { return }
+        UserSettings.shared.grammarRouteID = routeID
     }
 
     @objc private func resetPrompt() {
-        guard actions.indices.contains(selectedActionIndex) else { return }
-        let actionID = actions[selectedActionIndex].id
-        if let defaultAction = UserSettings.defaultSavedActions.first(where: { $0.id == actionID }) {
-            actions[selectedActionIndex].prompt = defaultAction.prompt
-            promptField.string = defaultAction.prompt
-            saveActions()
-        }
+        UserSettings.shared.grammarPrompt = UserSettings.defaultFixPrompt
+        promptField.string = UserSettings.defaultFixPrompt
     }
 
-    private func refreshActionEditor() {
-        if actions.isEmpty {
-            actions = UserSettings.defaultSavedActions
-        }
-        selectedActionIndex = min(max(selectedActionIndex, 0), actions.count - 1)
-        refreshActionPopup()
-
-        let action = actions[selectedActionIndex]
-        actionNameField.stringValue = action.name
-        promptField.string = action.prompt
-        populateRoutePopup(actionRoutePopup, selectedRouteID: action.routeID)
-    }
-
-    private func refreshActionPopup() {
-        actionPopup.removeAllItems()
-        for action in actions {
-            actionPopup.addItem(withTitle: action.name)
-        }
-        if actions.indices.contains(selectedActionIndex) {
-            actionPopup.selectItem(at: selectedActionIndex)
-        }
-    }
-
-    private func saveCurrentAction() {
-        guard actions.indices.contains(selectedActionIndex) else { return }
-        let name = actionNameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        actions[selectedActionIndex].name = name.isEmpty ? "Untitled Action" : name
-        actions[selectedActionIndex].prompt = promptField.string
-
-        if let routeID = selectedRouteID(from: actionRoutePopup),
-           let route = UserSettings.shared.modelRoute(for: routeID) {
-            actions[selectedActionIndex].routeID = routeID
-            actions[selectedActionIndex].provider = route.provider
-        }
-
-        saveActions()
-    }
-
-    private func saveActions() {
-        UserSettings.shared.savedActions = actions
+    @objc private func showRecoveredActions() {
+        guard let url = UserSettings.shared.retiredActionsRecoveryURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     @objc private func recordShortcut() {
@@ -1548,7 +1446,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             NSEvent.removeMonitor(monitor)
             shortcutMonitor = nil
         }
-        saveCurrentAction()
+        UserSettings.shared.grammarPrompt = promptField.string
     }
 }
 
@@ -1742,9 +1640,7 @@ extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
 
 extension SettingsWindow: NSTextViewDelegate {
     func textDidChange(_ notification: Notification) {
-        guard actions.indices.contains(selectedActionIndex) else { return }
-        actions[selectedActionIndex].prompt = promptField.string
-        saveActions()
+        UserSettings.shared.grammarPrompt = promptField.string
     }
 }
 
@@ -1752,7 +1648,9 @@ extension SettingsWindow: NSTextFieldDelegate {
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
 
-        if field === falAPIKeyField {
+        if field === openRouterAPIKeyField {
+            openRouterAPIKeyChanged()
+        } else if field === falAPIKeyField {
             falAPIKeyChanged()
         } else if field === openAIAPIKeyField {
             openAIAPIKeyChanged()
@@ -1770,8 +1668,6 @@ extension SettingsWindow: NSTextFieldDelegate {
             refreshRemoteCatalogTable()
         } else if field === lmStudioURLField {
             lmStudioURLChanged()
-        } else if field === actionNameField {
-            actionNameChanged()
         }
     }
 }

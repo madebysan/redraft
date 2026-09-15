@@ -29,4 +29,13 @@ final class ModelRoutingTests: XCTestCase {
             "anthropic/claude-haiku-4.5"
         )
     }
+
+    func testDefaultRemoteModelIsAHostedLowCostRewriteModel() {
+        XCTAssertEqual(UserSettings.defaultFalModel, "deepseek/deepseek-v4.1-flash")
+    }
+
+    func testCurrentDeepSeekFlashRouteIsAvailable() {
+        XCTAssertFalse(UserSettings.isUnavailableFalModel("deepseek/deepseek-v4-flash"))
+        XCTAssertFalse(UserSettings.isUnavailableFalModel("deepseek/deepseek-v4.1-flash"))
+    }
 }

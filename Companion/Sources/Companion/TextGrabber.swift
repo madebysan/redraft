@@ -26,17 +26,14 @@ final class TextGrabber {
         let selectedWordCount: Int
         let sourceApp: NSRunningApplication?
         let savedItems: [NSPasteboardItem]
-    }
-
-    private struct FocusedTextContext {
-        let selectedText: String
-        let caretRect: CGRect?
+        var selectionSnapshot: TextSelectionSnapshot? = nil
     }
 
     private struct PendingPreview {
         let result: String
         let session: RewriteSession
         let images: [PromptImageAttachment]
+        var canPaste = true
     }
 
     private enum PastePresentation {
@@ -61,6 +58,7 @@ final class TextGrabber {
 
         // Remember which app was frontmost so we can paste back into it
         let sourceApp = NSWorkspace.shared.frontmostApplication
+        let selectionSnapshot = sourceApp.flatMap { TextSelectionSnapshot.capture(processID: $0.processIdentifier) }
 
         let pasteboard = NSPasteboard.general
         let changeCountBefore = pasteboard.changeCount
@@ -68,69 +66,55 @@ final class TextGrabber {
         // Save original clipboard contents to restore later
         let savedItems = saveClipboard(pasteboard)
 
-        if let focusedTextContext = focusedTextContext() {
+        let anchorRect = selectionSnapshot.flatMap { selectedTextBounds(from: $0.element) }
+        if let capturedText = selectionSnapshot?.fingerprint.resolvedSelectedText, !capturedText.isEmpty {
             activeSession = RewriteSession(
-                selectedText: focusedTextContext.selectedText,
-                selectedWordCount: Self.wordCount(in: focusedTextContext.selectedText),
+                selectedText: capturedText,
+                selectedWordCount: Self.wordCount(in: capturedText),
                 sourceApp: sourceApp,
-                savedItems: savedItems
+                savedItems: savedItems,
+                selectionSnapshot: selectionSnapshot
             )
             CommandPaletteWindowController.shared.show(
-                selectedText: focusedTextContext.selectedText,
-                anchorRect: focusedTextContext.caretRect
+                selectedText: capturedText,
+                anchorRect: anchorRect
             )
             return
         }
 
-        // Fall back to Cmd+C for apps that do not expose focused text through Accessibility.
+        // A caret rectangle does not prove there is no selected text. Confirm an
+        // empty/omitted AX result with Copy before the palette can take focus.
         simulateKeyPress(keyCode: UInt16(kVK_ANSI_C), modifiers: .maskCommand)
 
         // Poll for clipboard change instead of fixed delay (up to 500ms)
         pollClipboardChange(pasteboard: pasteboard, expected: changeCountBefore, attempts: 10, interval: 0.05) { changed in
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == sourceApp?.processIdentifier else {
+                self.isProcessing = false
+                return
+            }
             if !changed {
                 logger.notice("clipboard unchanged — opening palette with no selected text")
             }
 
-            let selectedText = changed ? (pasteboard.string(forType: .string) ?? "") : ""
+            let refreshedSnapshot = sourceApp.flatMap { TextSelectionSnapshot.capture(processID: $0.processIdentifier) }
+            let selectedText = changed ? (pasteboard.string(forType: .string) ?? "")
+                : (refreshedSnapshot?.fingerprint.resolvedSelectedText ?? "")
+            if selectedText.isEmpty, (refreshedSnapshot?.fingerprint.range?.length ?? selectionSnapshot?.fingerprint.range?.length ?? 0) > 0 {
+                self.restoreClipboard(pasteboard, items: savedItems)
+                self.isProcessing = false
+                self.showErrorNotification("Couldn't read the selected text. Select it again and reopen Companion.")
+                return
+            }
 
             self.activeSession = RewriteSession(
                 selectedText: selectedText,
                 selectedWordCount: Self.wordCount(in: selectedText),
                 sourceApp: sourceApp,
-                savedItems: savedItems
+                savedItems: savedItems,
+                selectionSnapshot: refreshedSnapshot ?? selectionSnapshot
             )
-            CommandPaletteWindowController.shared.show(selectedText: selectedText)
+            CommandPaletteWindowController.shared.show(selectedText: selectedText, anchorRect: anchorRect)
         }
-    }
-
-    private func focusedTextContext() -> FocusedTextContext? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedElement: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            systemWide,
-            kAXFocusedUIElementAttribute as CFString,
-            &focusedElement
-        ) == .success else {
-            return nil
-        }
-
-        let element = unsafeBitCast(focusedElement, to: AXUIElement.self)
-        let selectedText = selectedText(from: element) ?? ""
-        let caretRect = selectedTextBounds(from: element)
-        guard !selectedText.isEmpty || caretRect != nil else { return nil }
-        return FocusedTextContext(selectedText: selectedText, caretRect: caretRect)
-    }
-
-    private func selectedText(from element: AXUIElement) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            kAXSelectedTextAttribute as CFString,
-            &value
-        ) == .success else {
-            return nil
-        }
-        return value as? String
     }
 
     private func selectedTextBounds(from element: AXUIElement) -> CGRect? {
@@ -192,14 +176,6 @@ final class TextGrabber {
         return rect
     }
 
-    // Legacy direct rewrite path. Kept for older entry points.
-    func grabRewriteAndPaste() {
-        let mode = UserSettings.shared.rewriteMode
-        grabSelectionAndRun(historyLabel: mode.label) { text in
-            try await RewriteDispatcher.shared.generate(text, mode: mode)
-        }
-    }
-
     func cancelPaletteSession() {
         activeRewriteTask?.cancel()
         activeRewriteTask = nil
@@ -231,7 +207,7 @@ final class TextGrabber {
     }
 
     func pastePreviewResult() {
-        guard let pendingPreview else { return }
+        guard let pendingPreview, pendingPreview.canPaste else { return }
         let preview = pendingPreview
         self.pendingPreview = nil
         didCopyPendingPreview = false
@@ -243,22 +219,9 @@ final class TextGrabber {
         )
     }
 
-    func runSavedAction(
-        _ action: UserSettings.SavedAction,
-        route: GenerationRoute = .auto,
-        images: [PromptImageAttachment] = []
-    ) {
-        runPaletteRewrite(
-            title: action.name,
-            historyLabel: action.name,
-            images: images
-        ) { text in
-            try await RewriteDispatcher.shared.generate(
-                text,
-                action: action,
-                route: route,
-                images: images
-            )
+    func runFixGrammar() {
+        runPaletteRewrite(title: "Fix Grammar", historyLabel: "Fix Grammar", images: []) { text in
+            try await RewriteDispatcher.shared.generateGrammar(text)
         }
     }
 
@@ -307,7 +270,7 @@ final class TextGrabber {
                 let generation = try await request(session.selectedText)
                 await MainActor.run {
                     guard self.activeRequestID == requestID else { return }
-                    GenerationHistoryStore.shared.add(
+                    self.recordHistory(
                         result: generation.text,
                         actionLabel: historyLabel,
                         provider: generation.provider,
@@ -315,27 +278,23 @@ final class TextGrabber {
                         selectedWordCount: session.selectedWordCount,
                         imageFileNames: images.map(\.fileName)
                     )
-                    let isGenerating = session.selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    self.pendingPreview = PendingPreview(
-                        result: generation.text,
-                        session: session,
-                        images: images
-                    )
+                    self.pendingPreview = nil
                     self.didCopyPendingPreview = false
-                    self.activeRewriteTask = nil
-                    self.activeRequestID = nil
-                    self.onStatusChange?(.done)
-                    CommandPaletteWindowController.shared.showTextResult(
-                        text: generation.text,
-                        title: historyLabel,
-                        subtitle: isGenerating ? "Ready to insert" : "Ready to paste",
-                        images: images
+                    self.paste(
+                        generation.text,
+                        into: session,
+                        previewImages: images
                     )
                 }
             } catch {
                 logger.error("rewrite failed: \(error.localizedDescription)")
                 await MainActor.run {
                     guard self.activeRequestID == requestID else { return }
+                    if case CompletionError.incomplete(let partial) = error, !partial.isEmpty {
+                        self.preserveResultForManualPaste(partial, session: session, images: images,
+                            explanation: "Incomplete response · copied to clipboard. Original text unchanged.", canPaste: false)
+                        return
+                    }
                     self.activeRewriteTask = nil
                     self.restoreClipboard(NSPasteboard.general, items: session.savedItems)
                     self.activeRequestID = nil
@@ -349,69 +308,14 @@ final class TextGrabber {
         }
     }
 
-    private func grabSelectionAndRun(
-        historyLabel: String,
-        request: @escaping (String) async throws -> GenerationResult
-    ) {
-        guard !isProcessing else {
-            logger.notice("rewrite already in progress — ignoring trigger")
-            return
-        }
-        isProcessing = true
-
-        let sourceApp = NSWorkspace.shared.frontmostApplication
-        let pasteboard = NSPasteboard.general
-        let changeCountBefore = pasteboard.changeCount
-        let savedItems = saveClipboard(pasteboard)
-
-        simulateKeyPress(keyCode: UInt16(kVK_ANSI_C), modifiers: .maskCommand)
-
-        pollClipboardChange(pasteboard: pasteboard, expected: changeCountBefore, attempts: 10, interval: 0.05) { changed in
-            guard changed else {
-                logger.notice("clipboard unchanged — no selection or missing permission")
-                self.restoreClipboard(pasteboard, items: savedItems)
-                self.isProcessing = false
-                return
-            }
-
-            let selectedText = pasteboard.string(forType: .string) ?? ""
-            guard !selectedText.isEmpty else {
-                self.restoreClipboard(pasteboard, items: savedItems)
-                self.isProcessing = false
-                return
-            }
-
-            self.onStatusChange?(.rewriting)
-
-            Task {
-                do {
-                    let generation = try await request(selectedText)
-                    await MainActor.run {
-                        let session = RewriteSession(
-                            selectedText: selectedText,
-                            selectedWordCount: Self.wordCount(in: selectedText),
-                            sourceApp: sourceApp,
-                            savedItems: savedItems
-                        )
-                        GenerationHistoryStore.shared.add(
-                            result: generation.text,
-                            actionLabel: historyLabel,
-                            provider: generation.provider,
-                            model: generation.model,
-                            selectedWordCount: session.selectedWordCount,
-                            imageFileNames: []
-                        )
-                        self.paste(generation.text, into: session)
-                    }
-                } catch {
-                    logger.error("rewrite failed: \(error.localizedDescription)")
-                    await MainActor.run {
-                        self.restoreClipboard(pasteboard, items: savedItems)
-                        self.onStatusChange?(.error(error.localizedDescription))
-                        self.showErrorNotification(error.localizedDescription)
-                        self.isProcessing = false
-                    }
-                }
+    private func recordHistory(result: String, actionLabel: String, provider: UserSettings.Provider,
+        model: String, selectedWordCount: Int, imageFileNames: [String]) {
+        Task {
+            do {
+                try await GenerationHistoryStore.shared.add(result: result, actionLabel: actionLabel,
+                    provider: provider, model: model, selectedWordCount: selectedWordCount, imageFileNames: imageFileNames)
+            } catch {
+                self.showErrorNotification("The rewrite is available, but history couldn't be saved.")
             }
         }
     }
@@ -422,21 +326,47 @@ final class TextGrabber {
         previewImages: [PromptImageAttachment] = [],
         presentation: PastePresentation = .status
     ) {
+        let pasteID = UUID()
+        activeRequestID = pasteID
         let pasteboard = NSPasteboard.general
+        // Generated text stays available even when target validation prevents insertion.
+        pasteboard.clearContents()
+        pasteboard.setString(rewritten, forType: .string)
+        activeSession = nil
         let isGenerating = session.selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
         // Re-activate the original app before pasting
-        session.sourceApp?.activate()
+        CommandPaletteWindowController.shared.prepareForReplacement()
+        guard let sourceApp = session.sourceApp, !sourceApp.isTerminated,
+              sourceApp.activate() else {
+            preserveResultForManualPaste(rewritten, session: session, images: previewImages)
+            return
+        }
 
         // Small delay to let the app come to front
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            guard self.activeRequestID == pasteID else { return }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == sourceApp.processIdentifier else {
+                self.preserveResultForManualPaste(rewritten, session: session, images: previewImages)
+                return
+            }
+            guard AXIsProcessTrusted(),
+                  session.selectionSnapshot?.stillMatches(processID: sourceApp.processIdentifier, selectedText: session.selectedText) == true else {
+                self.preserveResultForManualPaste(rewritten, session: session, images: previewImages,
+                    explanation: "Selection changed or couldn't be verified. Rewrite copied; paste it where you want.", canPaste: false)
+                return
+            }
             pasteboard.clearContents()
             pasteboard.setString(rewritten, forType: .string)
 
             // Simulate Cmd+V to paste
             self.simulateKeyPress(keyCode: UInt16(kVK_ANSI_V), modifiers: .maskCommand)
 
+            // The result now belongs on the clipboard, even if the status is dismissed.
+            self.activeSession = nil
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard self.activeRequestID == pasteID else { return }
                 self.activeRewriteTask = nil
                 self.activeRequestID = nil
                 self.activeSession = nil
@@ -444,7 +374,7 @@ final class TextGrabber {
                 switch presentation {
                 case .status:
                     CommandPaletteWindowController.shared.showSuccess(
-                        subtitle: isGenerating ? "Copied to clipboard" : "Selection replaced and copied"
+                        subtitle: isGenerating ? "Text inserted · copied to clipboard" : "Replacement sent · copied to clipboard"
                     )
                 case .closePreview:
                     CommandPaletteWindowController.shared.dismissAfterPreviewAction()
@@ -452,6 +382,24 @@ final class TextGrabber {
                 self.isProcessing = false
             }
         }
+    }
+
+    private func preserveResultForManualPaste(_ result: String, session: RewriteSession, images: [PromptImageAttachment],
+        explanation: String = "Couldn't return to the original app. Rewrite copied; paste it where you want.", canPaste: Bool = true) {
+        activeRewriteTask = nil
+        activeRequestID = nil
+        activeSession = nil
+        pendingPreview = PendingPreview(result: result, session: session, images: images, canPaste: canPaste)
+        didCopyPendingPreview = true
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(result, forType: .string)
+        onStatusChange?(.done)
+        CommandPaletteWindowController.shared.showTextResult(
+            text: result,
+            title: "Your rewrite",
+            subtitle: explanation,
+            images: images
+        )
     }
 
     // Poll clipboard changeCount instead of assuming a fixed delay is enough

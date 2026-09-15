@@ -23,14 +23,25 @@ INSTALLED_APP_BINARY="$INSTALLED_APP_BUNDLE/Contents/MacOS/$APP_NAME"
 INFO_PLIST="$PACKAGE_DIR/Sources/Companion/Resources/Info.plist"
 ICON_FILE="$PACKAGE_DIR/Sources/Companion/Resources/AppIcon.icns"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
-pkill -x "$LEGACY_APP_NAME" >/dev/null 2>&1 || true
+# Isolated visual QA: no installed app replacement, signing identity, or live defaults.
+if [[ "$MODE" == "--preview" ]]; then
+  shift
+  PREVIEW_BUNDLE="$DIST_DIR/CompanionPreview.app"
+  swift build --package-path "$PACKAGE_DIR"
+  PREVIEW_BINARY="$(swift build --package-path "$PACKAGE_DIR" --show-bin-path)/$PRODUCT_NAME"
+  mkdir -p "$PREVIEW_BUNDLE/Contents/MacOS" "$PREVIEW_BUNDLE/Contents/Resources"
+  cp "$PREVIEW_BINARY" "$PREVIEW_BUNDLE/Contents/MacOS/$APP_NAME"
+  cp "$INFO_PLIST" "$PREVIEW_BUNDLE/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.santiagoalonso.companion.preview' "$PREVIEW_BUNDLE/Contents/Info.plist"
+  codesign --force --sign - "$PREVIEW_BUNDLE"
+  /usr/bin/open -n "$PREVIEW_BUNDLE" --args --palette-preview "$@"
+  exit 0
+fi
 
 cd "$PACKAGE_DIR"
 swift build "${SWIFT_BUILD_FLAGS[@]}"
 BUILD_BINARY="$(swift build "${SWIFT_BUILD_FLAGS[@]}" --show-bin-path)/$PRODUCT_NAME"
 
-rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
@@ -42,23 +53,18 @@ fi
 sign_app() {
   if security find-identity -v -p codesigning | grep -Fq "$SIGN_IDENTITY"; then
     codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
+  else
+    echo "Developer ID signing identity unavailable; installed app was not changed." >&2
+    exit 1
   fi
 }
 
 replace_installed_app() {
-  if [[ -d "$LEGACY_INSTALLED_APP_BUNDLE" ]]; then
-    if [[ -x /usr/bin/trash ]]; then
-      /usr/bin/trash "$LEGACY_INSTALLED_APP_BUNDLE"
-    else
-      /usr/bin/osascript -e "tell application \"Finder\" to delete POSIX file \"$LEGACY_INSTALLED_APP_BUNDLE\"" >/dev/null
-    fi
-  fi
   if [[ -d "$INSTALLED_APP_BUNDLE" ]]; then
-    if [[ -x /usr/bin/trash ]]; then
-      /usr/bin/trash "$INSTALLED_APP_BUNDLE"
-    else
-      /usr/bin/osascript -e "tell application \"Finder\" to delete POSIX file \"$INSTALLED_APP_BUNDLE\"" >/dev/null
-    fi
+    BACKUP_DIR="$(mktemp -d "$ROOT_DIR/work/installed-backup.XXXXXX")"
+    /usr/bin/ditto "$INSTALLED_APP_BUNDLE" "$BACKUP_DIR/$APP_NAME.app"
+    echo "Updating in place; macOS may ask you to re-grant Accessibility or Input Monitoring."
+    echo "Previous app preserved at $BACKUP_DIR/$APP_NAME.app"
   fi
   /usr/bin/ditto "$APP_BUNDLE" "$INSTALLED_APP_BUNDLE"
   /usr/bin/xattr -dr com.apple.quarantine "$INSTALLED_APP_BUNDLE" >/dev/null 2>&1 || true
@@ -67,7 +73,7 @@ replace_installed_app() {
 install_app() {
   sign_app
   pkill -x "$APP_NAME" >/dev/null 2>&1 || true
-  pkill -x "$LEGACY_APP_NAME" >/dev/null 2>&1 || true
+  mkdir -p "$ROOT_DIR/work"
   replace_installed_app
   codesign --verify --deep --strict --verbose=2 "$INSTALLED_APP_BUNDLE" >/dev/null
 }
@@ -78,6 +84,11 @@ open_app() {
 }
 
 case "$MODE" in
+  --build-only)
+    sign_app
+    codesign --verify --deep --strict "$APP_BUNDLE"
+    echo "Signed app built at $APP_BUNDLE"
+    ;;
   run)
     open_app
     ;;
@@ -104,7 +115,7 @@ case "$MODE" in
     echo "$APP_NAME is running from $INSTALLED_APP_BUNDLE"
     ;;
   *)
-    echo "usage: $0 [run|--install|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [run|--build-only|--preview|--install|--debug|--logs|--telemetry|--verify]" >&2
     exit 2
     ;;
 esac

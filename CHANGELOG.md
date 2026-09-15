@@ -1,6 +1,32 @@
 # Changelog
 
-All notable public changes to Companion are documented here.
+All notable changes to Companion are documented here.
+
+## [0.3.0] - 2026-09-15
+
+### Changed
+
+- Replaced the large command palette with a two-action Capsule: Fix Grammar and custom instructions.
+- Added native Liquid Glass on macOS 26+, with native material fallback on earlier supported macOS versions.
+- Reduced loading, completion, and error feedback to small indicators; retained keyboard navigation and Reduce Motion support.
+- Replaced the saved-action editor with Writing settings. Grammar and macOS Services now share one prompt and model configuration.
+- Added direct OpenRouter support and paid DeepSeek V4.1 Flash as the writing default and explicit local-model fallback.
+- Moved API keys into Keychain with verified migration.
+- Moved history saves off the UI thread and preserved older records while displaying the latest 500.
+
+### Fixed
+
+- Rewrites replace the original selection through native Paste and remain on the clipboard. Native editor Undo remains available.
+- Improved capture when Accessibility omits selected text and released custom-input focus before replacement.
+- Blocked incomplete, refused, and empty responses from overwriting source text.
+- Fixed cancellation and stale completion timers; refreshed stale model catalogs when Providers opens.
+
+### Upgrade notes
+
+- Existing grammar prompt/model and custom-instruction routing are preserved.
+- Retired presets are exported to a readable local recovery file before their preferences are removed.
+- Model service accounts and API usage are separate from Companion; an OpenRouter key is required for the new default.
+- macOS may ask for Accessibility or Input Monitoring permissions again after updating.
 
 ## [0.2.3] - 2026-08-13
 

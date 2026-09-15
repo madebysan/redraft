@@ -89,7 +89,8 @@ final class OnboardingWindow: NSWindowController {
         providerPopup.translatesAutoresizingMaskIntoConstraints = false
         providerPopup.target = self
         providerPopup.action = #selector(providerChanged)
-        addProviderItem(title: "fal / OpenRouter", id: "fal")
+        addProviderItem(title: "OpenRouter · DeepSeek Flash", id: "openrouter")
+        addProviderItem(title: "fal gateway", id: "fal")
         addProviderItem(title: "OpenAI", id: "openai")
         addProviderItem(title: "Claude", id: "claude")
         addProviderItem(title: "Local only", id: "local")
@@ -234,6 +235,8 @@ final class OnboardingWindow: NSWindowController {
     @objc private func openAPIKeyPage() {
         let urlString: String
         switch selectedProviderID {
+        case "openrouter":
+            urlString = "https://openrouter.ai/settings/keys"
         case "openai":
             urlString = "https://platform.openai.com/api-keys"
         case "claude":
@@ -249,6 +252,10 @@ final class OnboardingWindow: NSWindowController {
     @objc private func getStarted() {
         let key = apiKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         switch selectedProviderID {
+        case "openrouter":
+            guard !key.isEmpty else { return }
+            UserSettings.shared.openRouterAPIKey = key
+            UserSettings.shared.useRecommendedWritingModel()
         case "fal":
             guard !key.isEmpty else { return }
             UserSettings.shared.falAPIKey = key
@@ -264,17 +271,28 @@ final class OnboardingWindow: NSWindowController {
         default:
             break
         }
+        if let error = UserSettings.shared.credentialStorageError {
+            statusLabel.stringValue = error
+            return
+        }
         UserSettings.shared.hasCompletedOnboarding = true
         statusLabel.stringValue = ""
         close()
     }
 
     private var selectedProviderID: String {
-        providerPopup.selectedItem?.representedObject as? String ?? "fal"
+        providerPopup.selectedItem?.representedObject as? String ?? "openrouter"
     }
 
     private func updateProviderSelection() {
         switch selectedProviderID {
+        case "openrouter":
+            apiKeyLabel.stringValue = "OpenRouter API Key"
+            apiHintLabel.stringValue = "Paid DeepSeek Flash for writing. Your key is stored in macOS Keychain."
+            apiKeyField.placeholderString = "OPENROUTER_API_KEY"
+            apiKeyField.isEnabled = true
+            apiKeyLinkButton.title = "Get an OpenRouter key"
+            apiKeyLinkButton.isHidden = false
         case "openai":
             apiKeyLabel.stringValue = "OpenAI API Key"
             apiHintLabel.stringValue = "Use OpenAI directly with your own key. You can change the model later in Settings."

@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let isPreviewLaunch = isPreviewMode()
+        if isPreviewLaunch { NSApp.setActivationPolicy(.regular) }
         installMainMenu()
 
         // Check accessibility permission
@@ -21,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Request notification permission so fallback + error notifications show
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        if !isPreviewLaunch {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
 
         // Set up menu bar
         statusBarController = StatusBarController(appDelegate: self)
@@ -139,9 +142,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     title: "Email Writer",
                     subtitle: "Ready to paste"
                 )
+            } else if arguments.contains("--palette-error-preview") {
+                CommandPaletteWindowController.shared.showError("The model didn't respond. Check your connection or choose another model, then try again.")
+            } else if arguments.contains("--palette-success-preview") {
+                CommandPaletteWindowController.shared.showSuccess()
             }
+
+            #if DEBUG
+            self.capturePreviewIfRequested(arguments)
+            #endif
         }
     }
+
+    #if DEBUG
+    private func capturePreviewIfRequested(_ arguments: [String]) {
+        guard let argument = arguments.first(where: { $0.hasPrefix("--snapshot=") }) else { return }
+        let path = String(argument.dropFirst("--snapshot=".count))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let targetWindow = arguments.contains("--settings-preview")
+                ? self.settingsWindow?.window : CommandPaletteWindowController.shared.window
+            guard let view = targetWindow?.contentView else { return }
+            view.layoutSubtreeIfNeeded()
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            do {
+                guard let data = bitmap.representation(using: .png, properties: [:]) else { return }
+                try data.write(to: URL(fileURLWithPath: path))
+            } catch {
+                NSLog("Preview export failed: %@", error.localizedDescription)
+            }
+            NSApp.terminate(nil)
+        }
+    }
+    #endif
 
     private func showSettingsPreviewIfRequested() {
         let arguments = ProcessInfo.processInfo.arguments

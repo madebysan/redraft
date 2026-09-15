@@ -4,9 +4,7 @@ import os.log
 
 private let logger = Logger(subsystem: "com.santiagoalonso.companion", category: "RewriteDispatcher")
 
-// Routes rewrite requests to the right provider based on saved action settings.
-// Keeps legacy mode support for the macOS Services entry.
-// Handles fallback from local to a remote fal/OpenRouter model when local is unavailable.
+// Routes the two writing operations to their configured models.
 final class RewriteDispatcher {
     static let shared = RewriteDispatcher()
 
@@ -28,45 +26,17 @@ final class RewriteDispatcher {
         }
     }
 
-    // Legacy mode entry point for Services compatibility.
-    func rewrite(_ text: String, mode: UserSettings.RewriteMode) async throws -> String {
-        try await generate(text, mode: mode).text
-    }
-
-    func generate(
-        _ text: String,
-        mode: UserSettings.RewriteMode,
-        route: GenerationRoute = .auto,
-        images: [PromptImageAttachment] = []
-    ) async throws -> GenerationResult {
-        let settings = UserSettings.shared
-        let provider = settings.provider(for: mode)
-        guard let resolvedRoute = route.routeOverride ?? settings.defaultModelRoute(for: provider) else {
-            throw DispatchError.noProviderAvailable("No model route is configured for \(provider.shortLabel).")
-        }
-        let systemPrompt = settings.prompt(for: mode)
-
-        return try await generate(text, systemPrompt: systemPrompt, route: resolvedRoute, images: images)
-    }
-
-    func rewrite(_ text: String, action: UserSettings.SavedAction) async throws -> String {
-        try await generate(text, action: action, route: .auto, images: []).text
-    }
-
-    func generate(
-        _ text: String,
-        action: UserSettings.SavedAction,
-        route: GenerationRoute,
-        images: [PromptImageAttachment]
-    ) async throws -> GenerationResult {
+    // Capsule and macOS Services share this prompt and model configuration.
+    func generateGrammar(_ text: String) async throws -> GenerationResult {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw DispatchError.emptySelectionForAction(action.name)
+            throw DispatchError.emptySelectionForAction("Fix Grammar")
         }
         let settings = UserSettings.shared
-        guard let resolvedRoute = route.routeOverride ?? settings.route(for: action) else {
-            throw DispatchError.noProviderAvailable("No model route is configured for \(action.name).")
+        if let error = settings.writingMigrationError { throw DispatchError.noProviderAvailable(error) }
+        guard let route = settings.modelRoute(for: settings.grammarRouteID) else {
+            throw DispatchError.noProviderAvailable("Choose a grammar model in Settings → Writing.")
         }
-        return try await generate(text, systemPrompt: action.prompt, route: resolvedRoute, images: images)
+        return try await generate(text, systemPrompt: settings.grammarPrompt, route: route)
     }
 
     func rewrite(_ text: String, customInstruction: String) async throws -> String {
@@ -131,6 +101,9 @@ final class RewriteDispatcher {
         try validateImages(images, route: route)
 
         switch route.provider {
+        case .openRouter:
+            let result = try await OpenRouterAPI.shared.rewrite(text, systemPrompt: systemPrompt, model: route.model, images: images)
+            return GenerationResult(text: result, provider: .openRouter, model: route.model)
         case .openAI:
             let result = try await OpenAIAPI.shared.rewrite(
                 text,
@@ -176,12 +149,15 @@ final class RewriteDispatcher {
                 )
                 return GenerationResult(text: result, provider: .lmStudio, model: route.model)
             } catch {
+                // Cancelling a local rewrite must never start a paid remote request.
+                try Task.checkCancellation()
+                if error is CompletionError { throw error }
                 logger.notice("local provider failed: \(error.localizedDescription)")
 
                 guard settings.fallbackToClaude else { throw error }
-                guard let remoteRoute = settings.availableModelRoutes.first(where: { $0.provider != .lmStudio }) else {
+                guard let remoteRoute = settings.inexpensiveFallbackRoute else {
                     throw DispatchError.noProviderAvailable(
-                        "Local provider failed and no remote model is available. Add a cloud provider key in Settings, or disable fallback."
+                        "Local provider failed. Add an OpenRouter key for the DeepSeek Flash fallback, or disable fallback."
                     )
                 }
                 try validateImages(images, route: remoteRoute)
