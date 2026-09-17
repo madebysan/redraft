@@ -1,7 +1,7 @@
 import AppKit
 
 // First-launch welcome screen with API key entry and permissions guide
-final class OnboardingWindow: NSWindowController {
+final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
     private var providerPopup: NSPopUpButton!
     private var apiKeyLabel: NSTextField!
     private var apiKeyField: NSSecureTextField!
@@ -49,7 +49,7 @@ final class OnboardingWindow: NSWindowController {
         // Description
         let descLabel = NSTextField(wrappingLabelWithString:
             "Transform selected text with one keystroke.\n\n" +
-            "Open a command palette, pick a saved action, or type a one-off instruction. Use local models through LM Studio or connect the cloud provider you already use."
+            "Open the Capsule to fix grammar or type a custom instruction. Use local models through LM Studio or connect a cloud provider with your own API key on this Mac."
         )
         descLabel.translatesAutoresizingMaskIntoConstraints = false
         descLabel.font = .systemFont(ofSize: 13)
@@ -116,6 +116,7 @@ final class OnboardingWindow: NSWindowController {
         apiKeyField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         apiKeyField.target = self
         apiKeyField.action = #selector(apiKeyChanged)
+        apiKeyField.delegate = self
         contentView.addSubview(apiKeyField)
 
         // "Get an API key" link
@@ -127,7 +128,7 @@ final class OnboardingWindow: NSWindowController {
         contentView.addSubview(apiKeyLinkButton)
 
         // Status label (for validation feedback)
-        statusLabel = NSTextField(labelWithString: "")
+        statusLabel = NSTextField(wrappingLabelWithString: "")
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.alignment = .center
@@ -221,6 +222,8 @@ final class OnboardingWindow: NSWindowController {
         statusLabel.stringValue = ""
     }
 
+    func controlTextDidChange(_ notification: Notification) { apiKeyChanged() }
+
     @objc private func providerChanged() {
         apiKeyField.stringValue = ""
         statusLabel.stringValue = ""
@@ -255,19 +258,15 @@ final class OnboardingWindow: NSWindowController {
         case "openrouter":
             guard !key.isEmpty else { return }
             UserSettings.shared.openRouterAPIKey = key
-            UserSettings.shared.useRecommendedWritingModel()
         case "fal":
             guard !key.isEmpty else { return }
             UserSettings.shared.falAPIKey = key
-            UserSettings.shared.customPromptProvider = .fal
         case "openai":
             guard !key.isEmpty else { return }
             UserSettings.shared.openAIAPIKey = key
-            UserSettings.shared.customPromptProvider = .openAI
         case "claude":
             guard !key.isEmpty else { return }
             UserSettings.shared.apiKey = key
-            UserSettings.shared.customPromptProvider = .claude
         default:
             break
         }
@@ -275,9 +274,13 @@ final class OnboardingWindow: NSWindowController {
             statusLabel.stringValue = error
             return
         }
+        let provider = selectedProviderID == "local" ? UserSettings.Provider.lmStudio
+            : (UserSettings.Provider(rawValue: selectedProviderID) ?? .openRouter)
+        let configured = UserSettings.shared.useWritingProvider(provider)
         UserSettings.shared.hasCompletedOnboarding = true
         statusLabel.stringValue = ""
         close()
+        if !configured { (NSApp.delegate as? AppDelegate)?.openSettingsPane(named: "Providers") }
     }
 
     private var selectedProviderID: String {
@@ -309,7 +312,7 @@ final class OnboardingWindow: NSWindowController {
             apiKeyLinkButton.isHidden = false
         case "local":
             apiKeyLabel.stringValue = "API Key"
-            apiHintLabel.stringValue = "No key needed. Set up LM Studio in Settings after Companion opens."
+            apiHintLabel.stringValue = "No key needed. Configure LM Studio in Providers, then choose its model in Writing."
             apiKeyField.placeholderString = ""
             apiKeyField.isEnabled = false
             apiKeyLinkButton.title = ""

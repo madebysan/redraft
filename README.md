@@ -3,7 +3,7 @@
 <p>Select text in any Mac app, run a writing command, and replace it in place.<br>
 Use your own cloud API key or a local model.</p>
 
-<p><strong>Version 0.3.0</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.3.1</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
@@ -48,6 +48,8 @@ History saves run off the UI thread, with one file per result. The latest 500 en
 4. Grant Accessibility and Input Monitoring when macOS asks, then relaunch Companion.
 
 Accessibility lets Companion copy a selection and paste the result. Input Monitoring lets the shortcut work while another app is focused. If macOS keeps an old permission entry after an update, remove Companion from both permission lists, add it again, and relaunch.
+
+On a different Mac, grant these permissions again and enter your provider key in setup or Settings → Providers. Provider keys are device-local and are never embedded in the DMG. Setup applies your chosen provider to both writing actions. If setup or permissions are missing, Companion shows an explanation with access to Settings.
 
 ## Build from source
 

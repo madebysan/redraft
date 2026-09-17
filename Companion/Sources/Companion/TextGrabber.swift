@@ -54,6 +54,12 @@ final class TextGrabber {
             logger.notice("rewrite already in progress — ignoring trigger")
             return
         }
+        guard AXIsProcessTrusted() else {
+            CommandPaletteWindowController.shared.showSetupRequired(
+                "Enable Companion in System Settings → Privacy & Security → Accessibility on this Mac, then reopen Companion. This permission is needed to read and replace selected text."
+            )
+            return
+        }
         isProcessing = true
 
         // Remember which app was frontmost so we can paste back into it
@@ -252,6 +258,9 @@ final class TextGrabber {
     ) {
         guard let session = activeSession else {
             isProcessing = false
+            CommandPaletteWindowController.shared.showSetupRequired(
+                "The selection session ended. Select your text and reopen Companion to try again."
+            )
             return
         }
         let requestID = UUID()
@@ -300,7 +309,11 @@ final class TextGrabber {
                     self.activeRequestID = nil
                     self.activeSession = nil
                     self.onStatusChange?(.error(error.localizedDescription))
-                    CommandPaletteWindowController.shared.showError(error.localizedDescription)
+                    if case RewriteDispatcher.DispatchError.noProviderAvailable = error {
+                        CommandPaletteWindowController.shared.showSetupRequired(error.localizedDescription)
+                    } else {
+                        CommandPaletteWindowController.shared.showError(error.localizedDescription)
+                    }
                     self.showErrorNotification(error.localizedDescription)
                     self.isProcessing = false
                 }

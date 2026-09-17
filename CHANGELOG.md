@@ -2,6 +2,16 @@
 
 All notable changes to Companion are documented here.
 
+## [0.3.1] - 2026-09-17
+
+### Fixed
+
+- Capsule clicks are checked against the panel bounds before outside-click dismissal, and buttons accept the first activation click.
+- Focus transitions during a Capsule click no longer immediately cancel the action.
+- First-run provider selection now configures both grammar and custom instructions for the chosen provider.
+- Typing an API key enables Get Started immediately; local-only setup opens provider configuration when no local model is selected.
+- Missing Accessibility permission, missing provider setup, and expired selection sessions show an actionable explanation.
+
 ## [0.3.0] - 2026-09-15
 
 ### Changed

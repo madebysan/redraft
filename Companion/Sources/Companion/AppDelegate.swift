@@ -201,6 +201,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func openSettingsPane(named pane: String) {
+        openSettings()
+        settingsWindow?.selectPane(named: pane)
+    }
+
     @objc func openAbout() {
         if aboutWindow == nil {
             aboutWindow = NSWindow(

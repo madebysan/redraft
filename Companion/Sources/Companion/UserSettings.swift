@@ -386,6 +386,25 @@ final class UserSettings {
         customPromptRouteID = route.id
     }
 
+    @discardableResult
+    func useWritingProvider(_ provider: Provider) -> Bool {
+        if provider == .openRouter { useRecommendedWritingModel(); return true }
+        let route: ModelRoute
+        if provider == .fal {
+            route = ModelRoute(id: ModelRoute.makeID(provider: .fal, model: falModel), name: "fal",
+                provider: .fal, model: falModel, supportsImages: falModelSupportsImages)
+            var routes = configuredModelRoutes
+            if !routes.contains(where: { $0.id == route.id }) { routes.append(route) }
+            configuredModelRoutes = routes
+        } else {
+            guard let selected = allModelRoutes.first(where: { $0.provider == provider }) else { return false }
+            route = selected
+        }
+        grammarRouteID = route.id
+        customPromptRouteID = route.id
+        return true
+    }
+
     var inexpensiveFallbackRoute: ModelRoute? {
         let route = Self.recommendedWritingRoute
         return hasAccess(to: route.provider) ? route : nil

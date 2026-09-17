@@ -4,6 +4,18 @@ import XCTest
 
 final class PaletteLifecycleTests: XCTestCase {
     @MainActor
+    func testClickInsideCapsuleCannotBeTreatedAsOutsideDismissal() {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        palette.show(selectedText: "Sample selection")
+        let frame = palette.window!.frame
+        palette.handleOutsideClick(at: NSPoint(x: frame.midX, y: frame.midY))
+        XCTAssertTrue(palette.isPaletteVisible, "A click activating the pill must not cancel its action.")
+        palette.handleOutsideClick(at: NSPoint(x: frame.maxX + 50, y: frame.midY))
+        XCTAssertFalse(palette.isPaletteVisible)
+    }
+
+    @MainActor
     func testCapsuleHasTwoActionsAndPencilOpensFocusedInput() {
         let palette = CommandPaletteWindowController()
         defer { palette.close() }
@@ -13,6 +25,7 @@ final class PaletteLifecycleTests: XCTestCase {
         }
         let actions = buttons(in: palette.window!.contentView!)
         XCTAssertEqual(actions.count, 2)
+        XCTAssertTrue(actions.allSatisfy { $0.acceptsFirstMouse(for: nil) })
         XCTAssertTrue(actions.allSatisfy { $0.focusRingType == .none })
         XCTAssertEqual(palette.window!.frame.width, 100) // 80 pt glass + shadow inset.
         let pencil = actions.first { $0.toolTip == "Write an instruction (Tab)" }

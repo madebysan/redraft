@@ -22,6 +22,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     private var keyMonitor: Any?
     private var outsideClickMonitor: Any?
     private var errorPopover: NSPopover?
+    private var errorButton: NSButton?
 
     var isPaletteVisible: Bool { window?.isVisible == true }
 
@@ -48,6 +49,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = false
         panel.isMovableByWindowBackground = true
         self.init(window: panel)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidResignActive),
@@ -168,8 +170,17 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         mode = .error
         errorMessage = message
         let content = installSurface(size: NSSize(width: 30, height: 30))
-        content.addSubview(button("exclamationmark", label: "\(message) Click for details.",
-            frame: content.bounds, action: #selector(showErrorDetails(_:))))
+        let details = button("exclamationmark", label: "\(message) Click for details.",
+            frame: content.bounds, action: #selector(showErrorDetails(_:)))
+        content.addSubview(details)
+        errorButton = details
+    }
+
+    func showSetupRequired(_ message: String) {
+        showError(message)
+        position(anchorRect: nil)
+        activate()
+        if let errorButton { showErrorDetails(errorButton) }
     }
 
     @objc private func showErrorDetails(_ sender: NSButton) {
@@ -262,7 +273,16 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
 
     @objc private func appDidResignActive() {
         guard Bundle.main.bundleIdentifier?.hasSuffix(".preview") != true else { return }
-        if mode == .actions || mode == .instruction { close() }
+        guard mode == .actions || mode == .instruction else { return }
+        // Activating a floating control can briefly transfer focus on mouse-down.
+        // Let that click reach the button; actual outside clicks are handled below.
+        if NSEvent.pressedMouseButtons != 0,
+           window?.frame.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation) == true { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !NSApp.isActive,
+                  self.mode == .actions || self.mode == .instruction else { return }
+            self.close()
+        }
     }
 
     private func installSurface(size: NSSize, animated: Bool = true) -> NSView {
@@ -271,6 +291,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         spinner?.stopAnimation(nil)
         spinner = nil
         inputField = nil
+        errorButton = nil
         actionButtons = []
         errorPopover?.close()
         errorPopover = nil
@@ -369,12 +390,18 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
             self?.handleKeyDown(event) == true ? nil : event
         }
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.mode != .loading, self.mode != .recovery else { return }
-                guard Bundle.main.bundleIdentifier?.hasSuffix(".preview") != true else { return }
-                self.close()
-            }
+            // AppKit delivers event-monitor callbacks on the main thread. Handle
+            // this event before a button action can replace/shrink the surface.
+            self?.handleOutsideClick(at: NSEvent.mouseLocation)
         }
+    }
+
+    func handleOutsideClick(at screenPoint: NSPoint) {
+        guard mode != .loading, mode != .recovery else { return }
+        guard Bundle.main.bundleIdentifier?.hasSuffix(".preview") != true else { return }
+        guard isPaletteVisible, let frame = window?.frame,
+              !frame.insetBy(dx: -4, dy: -4).contains(screenPoint) else { return }
+        close()
     }
 
     private func handleKeyDown(_ event: NSEvent) -> Bool {
@@ -431,6 +458,7 @@ private final class CommandPalettePanel: NSPanel {
 }
 
 private final class CapsuleActionButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     private var tracking: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
