@@ -15,7 +15,8 @@ enum WritingSettingsMigration {
     }
 
     static func migrate(defaults: UserDefaults, recoveryDirectory: URL, defaultPrompt: String,
-                        defaultRouteID: String, routeForProvider: (String) -> String?) throws {
+                        defaultRouteID: String, defaultCustomRouteID: String? = nil,
+                        routeForProvider: (String) -> String?) throws {
         guard !defaults.bool(forKey: "didMigrateWritingSettings") else { return }
         let legacy = legacyKeys.reduce(into: [String: Any]()) { values, key in
             if let value = defaults.object(forKey: key) { values[key] = value }
@@ -48,7 +49,7 @@ enum WritingSettingsMigration {
         defaults.set(prompt, forKey: "grammarPrompt")
         defaults.set(routeID, forKey: "grammarRouteID")
         if defaults.string(forKey: "customPromptRouteID") == nil {
-            defaults.set(defaultRouteID, forKey: "customPromptRouteID")
+            defaults.set(defaultCustomRouteID ?? defaultRouteID, forKey: "customPromptRouteID")
         }
         defaults.set(true, forKey: "didMigrateWritingSettings")
         for key in legacyKeys { defaults.removeObject(forKey: key) }

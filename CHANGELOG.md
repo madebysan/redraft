@@ -2,6 +2,28 @@
 
 All notable changes to Companion are documented here.
 
+## [0.4.0] - 2026-09-18
+
+### Added
+
+- Optional typing-first entry through General → Open with → Instruction field.
+- Web search when a typed instruction includes “use web search,” with source links saved separately in History.
+- Request duration in History and source-free copying of search results.
+
+### Changed
+
+- New installations use Gemini 3.5 Flash Lite for typed instructions and DeepSeek V4.1 Flash for grammar via OpenRouter.
+- Speed-prioritized provider routing with price caps, disabled DeepSeek reasoning, and minimum Gemini reasoning.
+- Simpler instruction guidance and a non-activating panel that avoids activating Companion over the source app.
+
+### Upgrade notes
+
+- Quit the previous app before replacing it in Applications. Saved model choices, prompts, keys, and history remain intact.
+- Use Providers → Use recommended models to adopt the new model pair explicitly.
+- Other Macs need their own key and permissions; permissions may need re-granting after an update.
+- Universal app and DMG signed, notarized, and stapled. Forty-six offline tests passed; an opt-in live search test passed separately.
+- Search grounding does not guarantee accuracy, and percentage-length instructions remain approximate.
+
 ## [0.3.1] - 2026-09-17
 
 ### Fixed

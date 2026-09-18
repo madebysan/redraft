@@ -3,6 +3,11 @@ import Foundation
 // Shared client for providers that expose an OpenAI-compatible chat completions API.
 final class OpenAICompatibleAPI {
     static let shared = OpenAICompatibleAPI()
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     enum APIError: Error, LocalizedError {
         case noAPIKey(String)
@@ -39,8 +44,25 @@ final class OpenAICompatibleAPI {
         instructionRole: String = "system",
         includeTemperature: Bool = true,
         maxTokensParameter: String? = "max_tokens",
-        disableReasoning: Bool = false
+        disableReasoning: Bool = false,
+        reasoningEffort: String? = nil,
+        providerPreferences: [String: Any]? = nil
     ) async throws -> String {
+        try await complete(text, systemPrompt: systemPrompt, providerName: providerName, endpoint: endpoint,
+            apiKey: apiKey, authorizationHeader: authorizationHeader, model: model, images: images,
+            instructionRole: instructionRole, includeTemperature: includeTemperature,
+            maxTokensParameter: maxTokensParameter, disableReasoning: disableReasoning,
+            reasoningEffort: reasoningEffort, providerPreferences: providerPreferences).text
+    }
+
+    func complete(
+        _ text: String, systemPrompt: String, providerName: String, endpoint: URL,
+        apiKey: String, authorizationHeader: String, model: String,
+        images: [PromptImageAttachment] = [], instructionRole: String = "system",
+        includeTemperature: Bool = true, maxTokensParameter: String? = "max_tokens",
+        disableReasoning: Bool = false, reasoningEffort: String? = nil,
+        providerPreferences: [String: Any]? = nil, webSearch: Bool = false
+    ) async throws -> TextCompletion {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -57,7 +79,13 @@ final class OpenAICompatibleAPI {
         if includeTemperature {
             body["temperature"] = 0.3
         }
-        if disableReasoning { body["reasoning"] = ["enabled": false] }
+        if let reasoningEffort {
+            body["reasoning"] = ["effort": reasoningEffort, "exclude": true]
+        } else if disableReasoning {
+            body["reasoning"] = ["enabled": false]
+        }
+        if let providerPreferences { body["provider"] = providerPreferences }
+        if webSearch { body["plugins"] = [WebSearch.plugin] }
         if let maxTokensParameter {
             body[maxTokensParameter] = 4096
         }
@@ -69,7 +97,7 @@ final class OpenAICompatibleAPI {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         request.timeoutInterval = 60
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse(providerName)
@@ -80,7 +108,7 @@ final class OpenAICompatibleAPI {
             throw APIError.requestFailed(providerName, "HTTP \(httpResponse.statusCode): \(errorBody)")
         }
 
-        return try CompletionValidator.openAI(data)
+        return try webSearch ? WebSearch.completion(from: data) : TextCompletion(text: CompletionValidator.openAI(data))
     }
 
     private func userContent(text: String, images: [PromptImageAttachment]) -> Any {

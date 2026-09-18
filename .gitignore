@@ -9,3 +9,28 @@ DerivedData/
 .DS_Store
 *.dmg
 plan.md
+
+# Local agent state, audit notes, and session artifacts
+.codex/
+.claude/
+CODE-QUALITY.md
+_archived/
+*.log
+
+# Credentials, environment files, and signing exports
+.env
+.env.*
+!.env.example
+!.env.template
+*.p8
+*.p12
+*.pfx
+*.key
+*.pem
+*.mobileprovision
+*.provisionprofile
+
+# Local bundles and packaging intermediates
+*.app/
+*.dSYM/
+*.xcarchive/

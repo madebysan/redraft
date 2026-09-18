@@ -40,10 +40,28 @@ final class UserSettings {
         do {
             try WritingSettingsMigration.migrate(defaults: defaults, recoveryDirectory: recoveryDirectory,
                 defaultPrompt: Self.defaultFixPrompt, defaultRouteID: Self.recommendedWritingRoute.id,
+                defaultCustomRouteID: Self.recommendedInstructionRoute.id,
                 routeForProvider: { raw in Provider(rawValue: raw).flatMap { self.defaultModelRoute(for: $0)?.id } })
         } catch {
             writingMigrationError = "Couldn't migrate writing settings. Old actions are preserved. Check available disk space and reopen Companion."
         }
+    }
+
+    enum PaletteDefaultView: String, CaseIterable {
+        case icons
+        case instruction
+
+        var title: String {
+            switch self {
+            case .icons: return "Action icons"
+            case .instruction: return "Instruction field"
+            }
+        }
+    }
+
+    var paletteDefaultView: PaletteDefaultView {
+        get { PaletteDefaultView(rawValue: defaults.string(forKey: "paletteDefaultView") ?? "") ?? .icons }
+        set { defaults.set(newValue.rawValue, forKey: "paletteDefaultView") }
     }
 
     enum Provider: String, CaseIterable, Codable {
@@ -167,6 +185,11 @@ final class UserSettings {
         model: "deepseek/deepseek-v4.1-flash", supportsImages: true
     )
     static let defaultRemoteCatalogModelCount = defaultRemoteCatalogModels.count
+    static let recommendedInstructionRoute = ModelRoute(
+        id: ModelRoute.makeID(provider: .openRouter, model: "google/gemini-3.5-flash-lite"),
+        name: "Gemini 3.5 Flash Lite", provider: .openRouter,
+        model: "google/gemini-3.5-flash-lite", supportsImages: true
+    )
     private static let unavailableFalModels: Set<String> = []
 
     private func migrateLegacyRewriteDefaultsIfNeeded() {
@@ -380,10 +403,12 @@ final class UserSettings {
     func useRecommendedWritingModel() {
         let route = Self.recommendedWritingRoute
         var routes = configuredModelRoutes
-        if !routes.contains(where: { $0.id == route.id }) { routes.insert(route, at: 0) }
+        for recommended in [route, Self.recommendedInstructionRoute] {
+            if !routes.contains(where: { $0.id == recommended.id }) { routes.append(recommended) }
+        }
         configuredModelRoutes = routes
         grammarRouteID = route.id
-        customPromptRouteID = route.id
+        customPromptRouteID = Self.recommendedInstructionRoute.id
     }
 
     @discardableResult
@@ -487,7 +512,7 @@ final class UserSettings {
     }
 
     private var defaultCloudModelRoutes: [ModelRoute] {
-        [Self.recommendedWritingRoute]
+        [Self.recommendedWritingRoute, Self.recommendedInstructionRoute]
     }
 
     private static let defaultRemoteCatalogModels: [RemoteCatalogModel] = [

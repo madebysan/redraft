@@ -36,7 +36,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     convenience init() {
         let panel = CommandPalettePanel(
             contentRect: NSRect(x: 0, y: 0, width: 100, height: 56),
-            styleMask: [.borderless, .fullSizeContentView],
+            styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -58,19 +58,24 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
 
     deinit { NotificationCenter.default.removeObserver(self) }
 
-    func show(selectedText: String, anchorRect: CGRect? = nil) {
+    func show(selectedText: String, anchorRect: CGRect? = nil, defaultView: UserSettings.PaletteDefaultView? = nil) {
         self.selectedText = selectedText
         instructionDraft = ""
         resultText = ""
-        showActions()
+        switch defaultView ?? UserSettings.shared.paletteDefaultView {
+        case .icons: showActions()
+        case .instruction: openInstruction()
+        }
         position(anchorRect: anchorRect)
-        activate()
+        presentOverlay()
     }
 
-    private func activate() {
-        NSApp.activate(ignoringOtherApps: true)
+    private func presentOverlay() {
+        // Take keyboard focus for the panel without activating Companion or
+        // deactivating the source application and its selected text.
         window?.makeKeyAndOrderFront(nil)
         window?.orderFrontRegardless()
+        if let inputField { window?.makeFirstResponder(inputField) }
         installMonitors()
     }
 
@@ -179,7 +184,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     func showSetupRequired(_ message: String) {
         showError(message)
         position(anchorRect: nil)
-        activate()
+        presentOverlay()
         if let errorButton { showErrorDetails(errorButton) }
     }
 
@@ -241,7 +246,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         copy.frame = NSRect(x: 244, y: 10, width: 104, height: 26)
         content.addSubview(copy)
         content.addSubview(button("xmark", label: "Close", frame: NSRect(x: 324, y: 196, width: 28, height: 28), action: #selector(dismiss)))
-        activate()
+        presentOverlay()
     }
 
     func showImageResult(text: String, images: [PromptImageAttachment], subtitle: String) {
@@ -454,7 +459,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
 
 private final class CommandPalettePanel: NSPanel {
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    override var canBecomeMain: Bool { false }
 }
 
 private final class CapsuleActionButton: NSButton {
@@ -463,7 +468,7 @@ private final class CapsuleActionButton: NSButton {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let tracking { removeTrackingArea(tracking) }
-        tracking = NSTrackingArea(rect: bounds, options: [.activeInActiveApp, .mouseEnteredAndExited, .inVisibleRect], owner: self)
+        tracking = NSTrackingArea(rect: bounds, options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect], owner: self)
         addTrackingArea(tracking!)
     }
     override func mouseEntered(with event: NSEvent) {

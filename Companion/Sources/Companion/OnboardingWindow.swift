@@ -89,7 +89,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         providerPopup.translatesAutoresizingMaskIntoConstraints = false
         providerPopup.target = self
         providerPopup.action = #selector(providerChanged)
-        addProviderItem(title: "OpenRouter · DeepSeek Flash", id: "openrouter")
+        addProviderItem(title: "OpenRouter · Gemini + DeepSeek", id: "openrouter")
         addProviderItem(title: "fal gateway", id: "fal")
         addProviderItem(title: "OpenAI", id: "openai")
         addProviderItem(title: "Claude", id: "claude")
@@ -291,7 +291,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         switch selectedProviderID {
         case "openrouter":
             apiKeyLabel.stringValue = "OpenRouter API Key"
-            apiHintLabel.stringValue = "Paid DeepSeek Flash for writing. Your key is stored in macOS Keychain."
+            apiHintLabel.stringValue = "Gemini for instructions, DeepSeek for grammar. Your key is stored in macOS Keychain."
             apiKeyField.placeholderString = "OPENROUTER_API_KEY"
             apiKeyField.isEnabled = true
             apiKeyLinkButton.title = "Get an OpenRouter key"

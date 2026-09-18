@@ -40,6 +40,8 @@ struct GenerationResult {
     let text: String
     let provider: UserSettings.Provider
     let model: String
+    var sources: [WebSource] = []
+    var usedWebSearch: Bool = false
 }
 
 extension UserSettings.Provider {

@@ -2,6 +2,34 @@ import XCTest
 @testable import Companion
 
 final class StorageAndRoutingTests: XCTestCase {
+    func testPaletteDefaultViewPersistsWithoutChangingModelChoices() {
+        let defaults = isolatedDefaults()
+        let credentials = CredentialStore(backend: MemoryCredentialBackend())
+        let settings = UserSettings(defaults: defaults, credentials: credentials)
+        XCTAssertEqual(settings.paletteDefaultView, .icons)
+        let originalRoute = settings.grammarRouteID
+        settings.paletteDefaultView = .instruction
+        let reopened = UserSettings(defaults: defaults, credentials: credentials)
+        XCTAssertEqual(reopened.paletteDefaultView, .instruction)
+        XCTAssertEqual(reopened.grammarRouteID, originalRoute)
+    }
+
+    func testRequestTimingPersistsAndOldHistoryStillDecodes() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("CompanionTimingTests-\(UUID().uuidString)")
+        let store = GenerationHistoryStore(directory: folder)
+        try await store.add(result: "Test result", actionLabel: "Fix Grammar", provider: .openRouter,
+            model: "test", selectedWordCount: 2, imageFileNames: [], requestDurationSeconds: 1.25)
+        let entries = try await store.entries()
+        XCTAssertEqual(entries.first?.requestDurationSeconds, 1.25)
+        let legacy: [String: Any] = ["id": UUID().uuidString, "createdAt": "2026-09-15T12:00:00Z",
+            "actionLabel": "Fix Grammar", "provider": "OpenRouter", "model": "test",
+            "selectedWordCount": 2, "hadImages": false, "imageFileNames": [String](), "result": "Old result"]
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let oldEntry = try decoder.decode(GenerationHistoryStore.Entry.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertNil(oldEntry.requestDurationSeconds)
+    }
+
     private func isolatedDefaults() -> UserDefaults {
         UserDefaults(suiteName: "CompanionTests-\(UUID().uuidString)")!
     }
@@ -73,7 +101,7 @@ final class StorageAndRoutingTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path).count, 1)
         relaunched.useRecommendedWritingModel()
         XCTAssertEqual(relaunched.grammarRouteID, UserSettings.recommendedWritingRoute.id)
-        XCTAssertEqual(relaunched.customPromptRouteID, UserSettings.recommendedWritingRoute.id)
+        XCTAssertEqual(relaunched.customPromptRouteID, UserSettings.recommendedInstructionRoute.id)
         XCTAssertEqual(relaunched.grammarPrompt, "A later prompt")
     }
 

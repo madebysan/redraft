@@ -38,6 +38,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private var remoteCatalogStatusLabel: NSTextField!
     private var refreshRemoteModelsButton: NSButton!
     private var launchAtLoginCheckbox: NSButton!
+    private var paletteDefaultViewPopup: NSPopUpButton!
     private var shortcutLabel: NSTextField!
     private var shortcutMonitor: Any?
     private var lmStudioURLField: NSTextField!
@@ -239,6 +240,14 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 launchAtLoginCheckbox.state = UserSettings.shared.launchAtLogin ? .on : .off
                 section.addArrangedSubview(launchAtLoginCheckbox)
 
+                paletteDefaultViewPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+                paletteDefaultViewPopup.addItems(withTitles: UserSettings.PaletteDefaultView.allCases.map(\.title))
+                paletteDefaultViewPopup.selectItem(withTitle: UserSettings.shared.paletteDefaultView.title)
+                paletteDefaultViewPopup.target = self
+                paletteDefaultViewPopup.action = #selector(paletteDefaultViewChanged)
+                section.addArrangedSubview(makeSettingsRow(label: "Open with", control: paletteDefaultViewPopup))
+                section.addArrangedSubview(makeHelpLabel("Open directly into an instruction, or show the two action icons first."))
+
                 section.addArrangedSubview(makeHelpLabel(
                     "Companion stays in the menu bar and opens the command palette with your global shortcut."
                 ))
@@ -270,15 +279,21 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         }
     }
 
+    @objc private func paletteDefaultViewChanged() {
+        let choices = UserSettings.PaletteDefaultView.allCases
+        guard choices.indices.contains(paletteDefaultViewPopup.indexOfSelectedItem) else { return }
+        UserSettings.shared.paletteDefaultView = choices[paletteDefaultViewPopup.indexOfSelectedItem]
+    }
+
     private func makeProvidersPane() -> NSView {
         makePane { stack in
-            addSection("Writing model", help: "Paid DeepSeek V4.1 Flash through OpenRouter. The recommended model for grammar, custom instructions, and local fallback.", to: stack) { section in
+            addSection("Writing models", help: "Through OpenRouter: DeepSeek V4.1 Flash for grammar and local fallback, Gemini 3.5 Flash Lite for custom instructions.", to: stack) { section in
                 openRouterAPIKeyField = makeSecureField(value: UserSettings.shared.openRouterAPIKey, placeholder: "OPENROUTER_API_KEY")
                 openRouterAPIKeyField.target = self
                 openRouterAPIKeyField.action = #selector(openRouterAPIKeyChanged)
                 openRouterAPIKeyField.delegate = self
                 section.addArrangedSubview(makeSettingsRow(label: "OpenRouter key", control: openRouterAPIKeyField))
-                section.addArrangedSubview(makeSmallButton("Use DeepSeek Flash for both actions", action: #selector(useRecommendedWritingModel)))
+                section.addArrangedSubview(makeSmallButton("Use recommended models", action: #selector(useRecommendedWritingModel)))
                 section.addArrangedSubview(makeHelpLabel("Keys are stored in macOS Keychain. Your grammar prompt is preserved."))
                 if let error = UserSettings.shared.credentialStorageError { section.addArrangedSubview(makeHelpLabel(error)) }
             }
@@ -573,7 +588,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 historyResultView = NSTextView(frame: .zero)
                 historyResultView.isEditable = false
                 historyResultView.isSelectable = true
-                historyResultView.isRichText = false
+                historyResultView.isRichText = true
                 historyResultView.font = .systemFont(ofSize: 12)
                 historyResultView.textContainerInset = NSSize(width: 8, height: 8)
                 historyResultView.string = ""
@@ -1030,11 +1045,25 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
         let entry = historyEntries[row]
         historyResultView.string = entry.result
+        if let sources = entry.sources, !sources.isEmpty {
+            let detail = NSMutableAttributedString(string: entry.result + "\n\nSources\n", attributes: [
+                .font: historyResultView.font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor
+            ])
+            for source in sources where ["http", "https"].contains(source.url.scheme?.lowercased() ?? "") {
+                detail.append(NSAttributedString(string: "\(source.title)\n\(source.url.absoluteString)\n\n", attributes: [
+                    .font: NSFont.systemFont(ofSize: 12), .link: source.url,
+                    .foregroundColor: NSColor.linkColor
+                ]))
+            }
+            historyResultView.textStorage?.setAttributedString(detail)
+        }
         let date = Self.historyDateFormatter.string(from: entry.createdAt)
         let imageText = entry.hadImages
             ? " · images: \(entry.imageFileNames.joined(separator: ", "))"
             : ""
-        historyMetadataLabel.stringValue = "\(date) · \(entry.actionLabel) · \(entry.provider) · \(entry.model) · \(entry.selectedWordCount) selected words\(imageText)"
+        let durationText = (entry.requestDurationSeconds.map { " · " + String(format: "%.1f s request", $0) } ?? "")
+            + (entry.usedWebSearch == true ? " · Web search" : "")
+        historyMetadataLabel.stringValue = "\(date) · \(entry.actionLabel) · \(entry.provider) · \(entry.model) · \(entry.selectedWordCount) selected words\(durationText)\(imageText)"
         copyHistoryButton?.isEnabled = true
     }
 

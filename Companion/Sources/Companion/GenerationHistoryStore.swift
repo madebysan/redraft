@@ -15,6 +15,9 @@ actor GenerationHistoryStore {
         let hadImages: Bool
         let imageFileNames: [String]
         let result: String
+        let requestDurationSeconds: Double?
+        var sources: [WebSource]? = nil
+        var usedWebSearch: Bool? = nil
     }
 
     private let directory: URL
@@ -59,10 +62,12 @@ actor GenerationHistoryStore {
     }
 
     func add(result: String, actionLabel: String, provider: UserSettings.Provider, model: String,
-             selectedWordCount: Int, imageFileNames: [String]) throws {
+             selectedWordCount: Int, imageFileNames: [String], requestDurationSeconds: Double? = nil,
+             sources: [WebSource] = [], usedWebSearch: Bool = false) throws {
         let entry = Entry(id: UUID(), createdAt: Date(), actionLabel: actionLabel, provider: provider.shortLabel,
                           model: model, selectedWordCount: selectedWordCount, hadImages: !imageFileNames.isEmpty,
-                          imageFileNames: imageFileNames, result: result)
+                          imageFileNames: imageFileNames, result: result, requestDurationSeconds: requestDurationSeconds,
+                          sources: sources, usedWebSearch: usedWebSearch)
         try FileManager.default.createDirectory(at: entriesDirectory, withIntermediateDirectories: true)
         let timestamp = String(format: "%020.6f", entry.createdAt.timeIntervalSince1970)
         let file = entriesDirectory.appendingPathComponent("\(timestamp)-\(entry.id.uuidString).json")

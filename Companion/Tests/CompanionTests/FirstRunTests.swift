@@ -3,6 +3,21 @@ import XCTest
 @testable import Companion
 
 final class FirstRunTests: XCTestCase {
+    func testFreshInstallUsesTestedModelsAndUpgradePreservesChoices() {
+        let defaults = UserDefaults(suiteName: "CompanionUpgrade-\(UUID().uuidString)")!
+        let credentials = CredentialStore(backend: MemoryCredentialBackend())
+        let fresh = UserSettings(defaults: defaults, credentials: credentials)
+        XCTAssertEqual(fresh.modelRoute(for: fresh.customPromptRouteID!)?.model, "google/gemini-3.5-flash-lite")
+        XCTAssertEqual(fresh.modelRoute(for: fresh.grammarRouteID)?.model, "deepseek/deepseek-v4.1-flash")
+        fresh.customPromptRouteID = UserSettings.recommendedWritingRoute.id
+        fresh.grammarPrompt = "My preserved prompt"
+        fresh.paletteDefaultView = .instruction
+        let upgraded = UserSettings(defaults: defaults, credentials: credentials)
+        XCTAssertEqual(upgraded.customPromptRouteID, UserSettings.recommendedWritingRoute.id)
+        XCTAssertEqual(upgraded.grammarPrompt, "My preserved prompt")
+        XCTAssertEqual(upgraded.paletteDefaultView, .instruction)
+    }
+
     @MainActor
     func testTypingAPIKeyEnablesGetStartedWithoutAnExtraReturn() {
         let onboarding = OnboardingWindow()

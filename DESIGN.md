@@ -4,6 +4,8 @@ Companion is a frequent, keyboard-first writing utility. The command palette sho
 
 ## Palette
 
+Version 0.4.0 uses a non-activating panel and does not activate Companion when presenting it. General → Open with selects action icons or a directly focused instruction field (existing default remains icons). Hover tracking also works while the source app is active. This behavior has automated coverage and was included in the locally installed build tested by san; cross-machine and older-OS interaction still require device testing.
+
 - Selected direction: **Capsule**, approved by san on September 15, 2026. The floating AppKit `NSPanel` contains one 80 × 36-point glass pill with two 36-point action targets: Fix Grammar and Custom Instruction.
 - Use native `NSGlassEffectView` clear glass on macOS 26+, grouped in `NSGlassEffectContainerView`. Follow system appearance. On macOS 13–25 use a native popover material fallback. No painted white background or forced Light Aqua.
 - Use SF Symbols at 16 points for actions and 13 points for feedback, with quiet hover feedback, labels for accessibility, and precise tooltips.
@@ -18,8 +20,10 @@ Companion is a frequent, keyboard-first writing utility. The command palette sho
 
 ## Provider and history settings
 
+- Web search has no extra palette button. The explicit typed phrase `use web search` opts a request in. History shows a Web search marker and a secondary source-link list beneath the result in the existing scroll area. Copy Result and native replacement exclude this source list. Search status must not add a larger floating surface.
+
 - Writing replaces the old Actions pane. It contains model choices for Fix Grammar and Custom Instruction, a shared grammar prompt used by both Capsule and Services, and the inexpensive local-fallback toggle. No action picker, naming, add/remove, or reordering controls.
-- Keep the paid writing default in Providers: DeepSeek V4.1 Flash via direct OpenRouter, a secure key field, and one explicit action to reapply it to both writing operations without changing the grammar prompt.
+- Keep the paid writing defaults in Providers: DeepSeek V4.1 Flash for grammar and Gemini 3.5 Flash Lite for instructions via OpenRouter, a secure key field, and one explicit action to reapply the pair without changing the grammar prompt. Preserve saved choices on upgrade.
 - Preserve retired presets in a verified JSON recovery file before removing their preferences; expose recovery from Writing. Keep only a small compatibility reader, not an active saved-action system.
 - Distinguish direct OpenRouter from legacy fal billing. Other providers remain optional.
 - Show credential storage failures rather than silently reporting a successful save.

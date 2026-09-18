@@ -4,6 +4,19 @@ import XCTest
 
 final class PaletteLifecycleTests: XCTestCase {
     @MainActor
+    func testInstructionCanBeTheInitialViewWithoutActivatingTheApplication() {
+        let palette = CommandPaletteWindowController()
+        defer { palette.close() }
+        let originalApp = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        palette.show(selectedText: "A sample selection", defaultView: .instruction)
+        XCTAssertTrue(palette.window!.styleMask.contains(.nonactivatingPanel))
+        XCTAssertFalse(palette.window!.canBecomeMain)
+        XCTAssertEqual(palette.window!.frame.width, 340)
+        XCTAssertNotNil(palette.window!.firstResponder as? NSTextView)
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.processIdentifier, originalApp)
+    }
+
+    @MainActor
     func testClickInsideCapsuleCannotBeTreatedAsOutsideDismissal() {
         let palette = CommandPaletteWindowController()
         defer { palette.close() }

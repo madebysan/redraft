@@ -265,6 +265,8 @@ final class TextGrabber {
         }
         let requestID = UUID()
         activeRequestID = requestID
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        logger.info("Generation started request=\(requestID.uuidString, privacy: .public)")
 
         onStatusChange?(.rewriting)
         let isGenerating = session.selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -279,13 +281,17 @@ final class TextGrabber {
                 let generation = try await request(session.selectedText)
                 await MainActor.run {
                     guard self.activeRequestID == requestID else { return }
+                    let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+                    logger.info("Generation finished request=\(requestID.uuidString, privacy: .public) provider=\(generation.provider.rawValue, privacy: .public) elapsed_ms=\(Int(elapsed * 1000))")
                     self.recordHistory(
                         result: generation.text,
                         actionLabel: historyLabel,
                         provider: generation.provider,
                         model: generation.model,
                         selectedWordCount: session.selectedWordCount,
-                        imageFileNames: images.map(\.fileName)
+                        imageFileNames: images.map(\.fileName),
+                        requestDurationSeconds: elapsed,
+                        sources: generation.sources, usedWebSearch: generation.usedWebSearch
                     )
                     self.pendingPreview = nil
                     self.didCopyPendingPreview = false
@@ -296,7 +302,8 @@ final class TextGrabber {
                     )
                 }
             } catch {
-                logger.error("rewrite failed: \(error.localizedDescription)")
+                let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+                logger.error("Generation failed request=\(requestID.uuidString, privacy: .public) elapsed_ms=\(Int(elapsed * 1000)): \(error.localizedDescription)")
                 await MainActor.run {
                     guard self.activeRequestID == requestID else { return }
                     if case CompletionError.incomplete(let partial) = error, !partial.isEmpty {
@@ -322,11 +329,14 @@ final class TextGrabber {
     }
 
     private func recordHistory(result: String, actionLabel: String, provider: UserSettings.Provider,
-        model: String, selectedWordCount: Int, imageFileNames: [String]) {
+        model: String, selectedWordCount: Int, imageFileNames: [String], requestDurationSeconds: Double,
+        sources: [WebSource], usedWebSearch: Bool) {
         Task {
             do {
                 try await GenerationHistoryStore.shared.add(result: result, actionLabel: actionLabel,
-                    provider: provider, model: model, selectedWordCount: selectedWordCount, imageFileNames: imageFileNames)
+                    provider: provider, model: model, selectedWordCount: selectedWordCount,
+                    imageFileNames: imageFileNames, requestDurationSeconds: requestDurationSeconds,
+                    sources: sources, usedWebSearch: usedWebSearch)
             } catch {
                 self.showErrorNotification("The rewrite is available, but history couldn't be saved.")
             }
@@ -350,8 +360,12 @@ final class TextGrabber {
 
         // Re-activate the original app before pasting
         CommandPaletteWindowController.shared.prepareForReplacement()
-        guard let sourceApp = session.sourceApp, !sourceApp.isTerminated,
-              sourceApp.activate() else {
+        guard let sourceApp = session.sourceApp, !sourceApp.isTerminated else {
+            preserveResultForManualPaste(rewritten, session: session, images: previewImages)
+            return
+        }
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier != sourceApp.processIdentifier,
+           !sourceApp.activate() {
             preserveResultForManualPaste(rewritten, session: session, images: previewImages)
             return
         }
@@ -399,6 +413,7 @@ final class TextGrabber {
 
     private func preserveResultForManualPaste(_ result: String, session: RewriteSession, images: [PromptImageAttachment],
         explanation: String = "Couldn't return to the original app. Rewrite copied; paste it where you want.", canPaste: Bool = true) {
+        logger.notice("Generated text retained for manual recovery; no automatic replacement")
         activeRewriteTask = nil
         activeRequestID = nil
         activeSession = nil
