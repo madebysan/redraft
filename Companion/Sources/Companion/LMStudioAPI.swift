@@ -1,25 +1,51 @@
 import Foundation
 
-// Handles communication with a local LM Studio server (OpenAI-compatible API)
+// Handles communication with a local LM Studio server (OpenAI-compatible API).
+// Any OpenAI-compatible local server (Ollama, llama.cpp, vLLM) works through the same path.
 final class LMStudioAPI {
     static let shared = LMStudioAPI()
+    private let session: URLSession
 
-    enum APIError: Error, LocalizedError {
-        case invalidURL
-        case notReachable(String)
+    // Local servers may need to load the model into memory before answering, and
+    // thinking models spend tokens before the visible answer, so this is generous.
+    static let chatTimeout: TimeInterval = 180
+    static let listTimeout: TimeInterval = 5
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
+
+    enum APIError: Error, LocalizedError, Equatable {
+        case invalidURL(String)
+        case notReachable(String, String)
+        case timedOut(String, Int)
+        case insecureHostBlocked(String)
         case noModelConfigured
+        case modelNotFound(String)
         case requestFailed(String)
         case invalidResponse
         case emptyResponse
 
         var errorDescription: String? {
             switch self {
-            case .invalidURL: return "Invalid LM Studio URL. Check Settings."
-            case .notReachable(let url): return "LM Studio not reachable at \(url). Is the server running?"
-            case .noModelConfigured: return "No local model selected. Pick one in Settings."
-            case .requestFailed(let msg): return "LM Studio request failed: \(msg)"
-            case .invalidResponse: return "Invalid response from LM Studio"
-            case .emptyResponse: return "Empty response from LM Studio"
+            case .invalidURL(let url):
+                return "“\(url)” isn't a usable server address. Use something like http://127.0.0.1:1234 in Settings → Providers."
+            case .notReachable(let url, let detail):
+                return "Couldn't connect to the local server at \(url). Check that LM Studio's server is running and the address is right. (\(detail))"
+            case .timedOut(let url, let seconds):
+                return "The local server at \(url) didn't answer within \(seconds) seconds. The model may still be loading or is too slow for this Mac. Try again, or pick a smaller model."
+            case .insecureHostBlocked(let url):
+                return "macOS blocked the plain http connection to \(url). Use the server's IP address or a .local name, or enable https on the server."
+            case .noModelConfigured:
+                return "No local model selected. Pick one in Settings → Providers."
+            case .modelNotFound(let model):
+                return "The local server has no model named “\(model)”. In Settings → Providers, click Refresh and pick one of the listed models."
+            case .requestFailed(let msg):
+                return "Local server request failed: \(msg)"
+            case .invalidResponse:
+                return "Invalid response from the local server."
+            case .emptyResponse:
+                return "Empty response from the local server."
             }
         }
     }
@@ -32,12 +58,11 @@ final class LMStudioAPI {
         images: [PromptImageAttachment] = []
     ) async throws -> String {
         let baseURL = UserSettings.shared.lmStudioBaseURL
-        let model = overrideModel ?? UserSettings.shared.lmStudioModel
+        let model = (overrideModel ?? UserSettings.shared.lmStudioModel)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !model.isEmpty else { throw APIError.noModelConfigured }
-        guard let url = URL(string: "\(baseURL)/v1/chat/completions") else {
-            throw APIError.invalidURL
-        }
+        let url = try Self.endpoint(baseURL: baseURL, path: "/v1/chat/completions")
 
         let body: [String: Any] = [
             "model": model,
@@ -53,13 +78,13 @@ final class LMStudioAPI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 60
+        request.timeoutInterval = Self.chatTimeout
 
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
-            throw APIError.notReachable(baseURL)
+            throw Self.transportError(error, baseURL: baseURL, timeout: Self.chatTimeout)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -67,8 +92,7 @@ final class LMStudioAPI {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw APIError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
+            throw Self.httpError(status: httpResponse.statusCode, data: data, model: model)
         }
 
         return try CompletionValidator.openAI(data)
@@ -96,24 +120,22 @@ final class LMStudioAPI {
     // List available models at the configured base URL
     func listModels() async throws -> [String] {
         let baseURL = UserSettings.shared.lmStudioBaseURL
-        guard let url = URL(string: "\(baseURL)/v1/models") else {
-            throw APIError.invalidURL
-        }
+        let url = try Self.endpoint(baseURL: baseURL, path: "/v1/models")
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.timeoutInterval = 5
+        request.timeoutInterval = Self.listTimeout
 
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
-            throw APIError.notReachable(baseURL)
+            throw Self.transportError(error, baseURL: baseURL, timeout: Self.listTimeout)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw APIError.invalidResponse
+        guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard httpResponse.statusCode == 200 else {
+            throw Self.httpError(status: httpResponse.statusCode, data: data, model: "")
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -126,23 +148,59 @@ final class LMStudioAPI {
             .filter { !$0.contains("embed") }
     }
 
-    // Quick reachability check for fallback decisions
-    func isReachable() async -> Bool {
-        let baseURL = UserSettings.shared.lmStudioBaseURL
-        guard let url = URL(string: "\(baseURL)/v1/models") else { return false }
+    // MARK: - Address and error handling
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 2
-
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse {
-                return httpResponse.statusCode == 200
-            }
-            return false
-        } catch {
-            return false
+    // Builds a request URL from whatever address the user typed.
+    static func endpoint(baseURL: String, path: String) throws -> URL {
+        let normalized = UserSettings.normalizedLMStudioBaseURL(baseURL)
+        guard let url = URL(string: normalized + path),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              let host = url.host, !host.isEmpty else {
+            throw APIError.invalidURL(baseURL)
         }
+        return url
+    }
+
+    // Maps URLSession failures to messages that say what to fix instead of "not reachable" for everything.
+    static func transportError(_ error: Error, baseURL: String, timeout: TimeInterval) -> Error {
+        if error is CancellationError { return error }
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return APIError.notReachable(baseURL, nsError.localizedDescription)
+        }
+        switch nsError.code {
+        case NSURLErrorCancelled:
+            return CancellationError()
+        case NSURLErrorTimedOut:
+            return APIError.timedOut(baseURL, Int(timeout))
+        case NSURLErrorAppTransportSecurityRequiresSecureConnection:
+            return APIError.insecureHostBlocked(baseURL)
+        case NSURLErrorBadURL, NSURLErrorUnsupportedURL:
+            return APIError.invalidURL(baseURL)
+        default:
+            return APIError.notReachable(baseURL, nsError.localizedDescription)
+        }
+    }
+
+    static func httpError(status: Int, data: Data, model: String) -> APIError {
+        var message = String(data: data, encoding: .utf8) ?? "Unknown error"
+        var code = ""
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let error = json["error"] as? [String: Any]
+            message = (error?["message"] as? String)
+                ?? (json["error"] as? String)
+                ?? (json["message"] as? String)
+                ?? message
+            code = (error?["code"] as? String) ?? ""
+        }
+        let lower = message.lowercased()
+        let looksLikeMissingModel = code == "model_not_found"
+            || (lower.contains("model") && (lower.contains("not found") || lower.contains("invalid model") || lower.contains("not loaded")))
+        if !model.isEmpty, looksLikeMissingModel {
+            return .modelNotFound(model)
+        }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shown = trimmed.count > 220 ? "\(trimmed.prefix(220))..." : trimmed
+        return .requestFailed("HTTP \(status): \(shown)")
     }
 }

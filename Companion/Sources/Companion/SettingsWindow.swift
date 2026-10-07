@@ -1255,7 +1255,8 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     }
 
     @objc private func lmStudioURLChanged() {
-        UserSettings.shared.lmStudioBaseURL = lmStudioURLField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        UserSettings.shared.lmStudioBaseURL = lmStudioURLField.stringValue
+        lmStudioURLField.stringValue = UserSettings.shared.lmStudioBaseURL
     }
 
     @objc private func lmStudioModelChanged() {
@@ -1310,7 +1311,9 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                     UserSettings.shared.lmStudioModel = first
                     updateLMStudioVisionCheckbox(for: first)
                 }
+                let adopted = UserSettings.shared.adoptLocalRouteWhereCurrentIsUnavailable()
                 lmStudioStatusLabel.stringValue = "Connected. \(models.count) model\(models.count == 1 ? "" : "s") available."
+                    + (adopted ? " Writing now uses the local model." : "")
                 lmStudioStatusLabel.textColor = .systemGreen
             }
         } catch {
@@ -1319,7 +1322,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             updateLMStudioVisionCheckbox(for: nil)
             lmStudioStatusLabel.stringValue = isInitialLoad
                 ? "LM Studio not reachable. Start the server and click Refresh."
-                : "Could not reach LM Studio at that URL."
+                : error.localizedDescription
             lmStudioStatusLabel.textColor = isInitialLoad ? .tertiaryLabelColor : .systemRed
         }
 

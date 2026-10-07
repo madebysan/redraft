@@ -165,13 +165,14 @@ final class RewriteDispatcher {
 
                 guard settings.fallbackToClaude else { throw error }
                 guard let remoteRoute = settings.inexpensiveFallbackRoute else {
+                    // Keep the local failure visible; it is the thing the user can fix.
                     throw DispatchError.noProviderAvailable(
-                        "Local provider failed. Add an OpenRouter key for the DeepSeek Flash fallback, or disable fallback."
+                        "\(error.localizedDescription) No remote fallback is set up, so nothing else was tried."
                     )
                 }
                 try validateImages(images, route: remoteRoute)
 
-                notifyFallback()
+                notifyFallback(reason: error.localizedDescription)
                 return try await generate(
                     text,
                     systemPrompt: systemPrompt,
@@ -191,10 +192,10 @@ final class RewriteDispatcher {
         }
     }
 
-    private func notifyFallback() {
+    private func notifyFallback(reason: String) {
         let content = UNMutableNotificationContent()
         content.title = "Companion"
-        content.body = "Local model unavailable, used a remote model instead."
+        content.body = "Local model failed, used DeepSeek Flash instead. \(reason)"
         content.sound = nil
 
         let request = UNNotificationRequest(

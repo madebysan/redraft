@@ -2,6 +2,16 @@
 
 All notable changes to Companion are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- Local models work with whatever LM Studio setup a Mac has. Server addresses typed without `http://`, with a trailing slash, or ending in `/v1` are normalized instead of producing a broken request URL, and servers reached through a DNS name (VPN or Tailscale) are no longer blocked by App Transport Security.
+- Local requests wait up to 180 seconds instead of 60, so a model that is still loading on a slower Mac is not reported as "not reachable." Timeouts, missing models, and connection failures now each say what to fix.
+- Thinking models (Qwen, DeepSeek R1, LFM) no longer paste `<think>` reasoning into the document, and a missing `finish_reason` from a local server is accepted.
+- When a local model fails and no OpenRouter key exists for the fallback, the error shows the local failure instead of asking for an OpenRouter key.
+- Loading the local model list in Settings → Providers now points Fix Grammar and Custom instruction at the local model when their current route has no API key, so a local-only setup works without a trip to Settings → Writing.
+
 ## [0.4.0] - 2026-09-18
 
 ### Added

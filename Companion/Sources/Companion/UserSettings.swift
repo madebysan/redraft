@@ -430,6 +430,26 @@ final class UserSettings {
         return true
     }
 
+    // After a local model list loads, point writing actions at the local model when their
+    // current route needs an API key the user doesn't have. Without this, a local-only Mac keeps
+    // the cloud defaults and every rewrite fails asking for an OpenRouter key.
+    @discardableResult
+    func adoptLocalRouteWhereCurrentIsUnavailable() -> Bool {
+        let selectedKey = normalizedModelKey(lmStudioModel)
+        guard let local = localModelRoutes.first(where: { normalizedModelKey($0.model) == selectedKey })
+            ?? localModelRoutes.first else { return false }
+        var changed = false
+        if availableModelRoute(for: grammarRouteID) == nil {
+            grammarRouteID = local.id
+            changed = true
+        }
+        if customPromptRouteID.flatMap({ availableModelRoute(for: $0) }) == nil {
+            customPromptRouteID = local.id
+            changed = true
+        }
+        return changed
+    }
+
     var inexpensiveFallbackRoute: ModelRoute? {
         let route = Self.recommendedWritingRoute
         return hasAccess(to: route.provider) ? route : nil
@@ -786,11 +806,23 @@ final class UserSettings {
     }
 
     var lmStudioBaseURL: String {
-        get {
-            let value = defaults.string(forKey: Keys.lmStudioBaseURL) ?? ""
-            return value.isEmpty ? Self.defaultLMStudioBaseURL : value
+        get { Self.normalizedLMStudioBaseURL(defaults.string(forKey: Keys.lmStudioBaseURL) ?? "") }
+        set { defaults.set(Self.normalizedLMStudioBaseURL(newValue), forKey: Keys.lmStudioBaseURL) }
+    }
+
+    // Accepts what people actually type for a local server: "localhost:1234",
+    // "http://192.168.1.20:1234/", or "http://mac.local:1234/v1".
+    static func normalizedLMStudioBaseURL(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return defaultLMStudioBaseURL }
+        let lower = value.lowercased()
+        if !lower.hasPrefix("http://"), !lower.hasPrefix("https://") {
+            value = "http://" + value
         }
-        set { defaults.set(newValue, forKey: Keys.lmStudioBaseURL) }
+        while value.hasSuffix("/") { value.removeLast() }
+        if value.lowercased().hasSuffix("/v1") { value.removeLast(3) }
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
     }
 
     var lmStudioModel: String {
