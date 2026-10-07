@@ -4,7 +4,7 @@
 
 <p>Select text. Say what you want changed. Keep writing.</p>
 
-<p><strong>Version 0.4.0</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.4.1</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
