@@ -14,8 +14,7 @@ enum WritingSettingsMigration {
         let routeID: String?
     }
 
-    static func migrate(defaults: UserDefaults, recoveryDirectory: URL, defaultPrompt: String,
-                        defaultRouteID: String, defaultCustomRouteID: String? = nil,
+    static func migrate(defaults: UserDefaults, recoveryDirectory: URL, defaultRouteID: String,
                         routeForProvider: (String) -> String?) throws {
         guard !defaults.bool(forKey: "didMigrateWritingSettings") else { return }
         let legacy = legacyKeys.reduce(into: [String: Any]()) { values, key in
@@ -25,8 +24,7 @@ enum WritingSettingsMigration {
         if let data = defaults.data(forKey: "savedActions") {
             grammar = try JSONDecoder().decode([LegacyAction].self, from: data).first { $0.id == "fix_grammar" }
         } else { grammar = nil }
-        let prompt = defaults.string(forKey: "grammarPrompt") ?? grammar?.prompt
-            ?? defaults.string(forKey: "rewritePrompt") ?? defaultPrompt
+        // The old grammar prompt is retired; the provider it ran on carries over as the single model.
         let routeID = defaults.string(forKey: "grammarRouteID") ?? grammar?.routeID
             ?? (grammar?.provider ?? defaults.string(forKey: "providerFixGrammar")).flatMap(routeForProvider)
             ?? defaultRouteID
@@ -46,10 +44,8 @@ enum WritingSettingsMigration {
             guard try Data(contentsOf: file) == data else { throw CocoaError(.fileWriteUnknown) }
             defaults.set(file.path, forKey: "retiredActionsRecoveryPath")
         }
-        defaults.set(prompt, forKey: "grammarPrompt")
-        defaults.set(routeID, forKey: "grammarRouteID")
         if defaults.string(forKey: "customPromptRouteID") == nil {
-            defaults.set(defaultCustomRouteID ?? defaultRouteID, forKey: "customPromptRouteID")
+            defaults.set(routeID, forKey: "customPromptRouteID")
         }
         defaults.set(true, forKey: "didMigrateWritingSettings")
         for key in legacyKeys { defaults.removeObject(forKey: key) }

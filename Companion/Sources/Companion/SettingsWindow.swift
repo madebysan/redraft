@@ -11,7 +11,7 @@ private let settingsMinimumWindowSize = NSSize(width: 700, height: 420)
 private let settingsPreferredMaximumWindowSize = NSSize(width: 780, height: 620)
 private let settingsWindowScreenMargin: CGFloat = 64
 
-// Settings window with provider routing, writing, shortcut, permissions, and launch behavior.
+// Settings window: general, models (Local or Cloud), writing, history, shortcut, permissions.
 final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private struct SettingsPaneItem {
         let title: String
@@ -19,35 +19,11 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         let view: NSView
     }
 
-    private var openAIAPIKeyField: NSSecureTextField!
-    private var openRouterAPIKeyField: NSSecureTextField!
-    private var isLoadingRemoteCatalog = false
-    private var openAIModelField: NSTextField!
-    private var claudeAPIKeyField: NSSecureTextField!
-    private var claudeModelField: NSTextField!
-    private var deepSeekAPIKeyField: NSSecureTextField!
-    private var deepSeekModelField: NSTextField!
-    private var falAPIKeyField: NSSecureTextField!
-    private var grammarRoutePopup: NSPopUpButton!
-    private var promptField: NSTextView!
-    private var modelRoutes: [UserSettings.ModelRoute] = []
-    private var remoteCatalogModels: [UserSettings.RemoteCatalogModel] = []
-    private var visibleRemoteCatalogModels: [UserSettings.RemoteCatalogModel] = []
-    private var remoteCatalogFilterField: NSTextField!
-    private var remoteCatalogTable: NSTableView!
-    private var remoteCatalogStatusLabel: NSTextField!
-    private var refreshRemoteModelsButton: NSButton!
+    private var modelsPane: ModelsSettingsPane!
     private var launchAtLoginCheckbox: NSButton!
     private var paletteDefaultViewPopup: NSPopUpButton!
     private var shortcutLabel: NSTextField!
     private var shortcutMonitor: Any?
-    private var lmStudioURLField: NSTextField!
-    private var lmStudioModelPopup: NSPopUpButton!
-    private var lmStudioStatusLabel: NSTextField!
-    private var refreshModelsButton: NSButton!
-    private var lmStudioVisionCheckbox: NSButton!
-    private var fallbackCheckbox: NSButton!
-    private var customPromptRoutePopup: NSPopUpButton!
     private var permissionsStack: NSStackView!
     private var sidebarTable: NSTableView!
     private var paneContainer: NSView!
@@ -88,13 +64,9 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        modelRoutes = UserSettings.shared.configuredModelRoutes
-        remoteCatalogModels = UserSettings.shared.remoteCatalogModels
-
         paneItems = [
             SettingsPaneItem(title: "General", symbolName: "gearshape", view: makeGeneralPane()),
-            SettingsPaneItem(title: "Providers", symbolName: "network", view: makeProvidersPane()),
-            SettingsPaneItem(title: "Writing", symbolName: "pencil", view: makeWritingPane()),
+            SettingsPaneItem(title: "Models", symbolName: "cpu", view: makeModelsPane()),
             SettingsPaneItem(title: "History", symbolName: "clock.arrow.circlepath", view: makeHistoryPane()),
             SettingsPaneItem(title: "Shortcut", symbolName: "keyboard", view: makeShortcutPane()),
             SettingsPaneItem(title: "Permissions", symbolName: "hand.raised", view: makePermissionsPane()),
@@ -143,10 +115,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             splitView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             sidebarScroll.widthAnchor.constraint(equalToConstant: 168),
         ])
-
-        Task { @MainActor in
-            await self.loadModelsList(isInitialLoad: true)
-        }
     }
 
     func selectPane(named title: String) {
@@ -175,9 +143,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         ]
         NSLayoutConstraint.activate(currentPaneConstraints)
         resetScrollPositionIfNeeded(for: pane)
-        if paneItems[index].title == "Providers", UserSettings.shared.remoteCatalogNeedsRefresh() {
-            Task { @MainActor in await self.loadRemoteModelCatalog() }
-        }
+        if paneItems[index].title == "Models" { modelsPane.paneDidAppear() }
         if paneItems[index].title == "History" { reloadHistory(selectFirst: true) }
     }
 
@@ -227,6 +193,14 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     private func makeGeneralPane() -> NSView {
         makePane { stack in
+            if let error = UserSettings.shared.writingMigrationError {
+                let warning = makeHelpLabel(error)
+                warning.textColor = .systemOrange
+                stack.addArrangedSubview(warning)
+            }
+            if UserSettings.shared.retiredActionsRecoveryURL != nil {
+                stack.addArrangedSubview(makeSmallButton("Show recovered action presets", action: #selector(showRecoveredActions)))
+            }
             addSection(
                 "Behavior",
                 help: "Control how Companion runs in the background.",
@@ -285,256 +259,9 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         UserSettings.shared.paletteDefaultView = choices[paletteDefaultViewPopup.indexOfSelectedItem]
     }
 
-    private func makeProvidersPane() -> NSView {
-        makePane { stack in
-            addSection("Writing models", help: "Through OpenRouter: DeepSeek V4.1 Flash for grammar and local fallback, Gemini 3.5 Flash Lite for custom instructions.", to: stack) { section in
-                openRouterAPIKeyField = makeSecureField(value: UserSettings.shared.openRouterAPIKey, placeholder: "OPENROUTER_API_KEY")
-                openRouterAPIKeyField.target = self
-                openRouterAPIKeyField.action = #selector(openRouterAPIKeyChanged)
-                openRouterAPIKeyField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "OpenRouter key", control: openRouterAPIKeyField))
-                section.addArrangedSubview(makeSmallButton("Use recommended models", action: #selector(useRecommendedWritingModel)))
-                section.addArrangedSubview(makeHelpLabel("Keys are stored in macOS Keychain. Your grammar prompt is preserved."))
-                if let error = UserSettings.shared.credentialStorageError { section.addArrangedSubview(makeHelpLabel(error)) }
-            }
-            addSection(
-                "Direct Providers",
-                help: "Optional cloud routes. Add a key for the provider you already use, then choose the models in Writing.",
-                to: stack
-            ) { section in
-                openAIAPIKeyField = makeSecureField(
-                    value: UserSettings.shared.openAIAPIKey,
-                    placeholder: "OPENAI_API_KEY"
-                )
-                openAIAPIKeyField.target = self
-                openAIAPIKeyField.action = #selector(openAIAPIKeyChanged)
-                openAIAPIKeyField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "OpenAI key", control: openAIAPIKeyField))
-
-                openAIModelField = makeTextField(
-                    value: UserSettings.shared.openAIModel,
-                    placeholder: UserSettings.defaultOpenAIModel,
-                    monospaced: true
-                )
-                openAIModelField.target = self
-                openAIModelField.action = #selector(openAIModelChanged)
-                openAIModelField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "OpenAI model", control: openAIModelField))
-
-                claudeAPIKeyField = makeSecureField(
-                    value: UserSettings.shared.apiKey,
-                    placeholder: "ANTHROPIC_API_KEY"
-                )
-                claudeAPIKeyField.target = self
-                claudeAPIKeyField.action = #selector(claudeAPIKeyChanged)
-                claudeAPIKeyField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "Claude key", control: claudeAPIKeyField))
-
-                claudeModelField = makeTextField(
-                    value: UserSettings.shared.claudeModel,
-                    placeholder: UserSettings.defaultClaudeModel,
-                    monospaced: true
-                )
-                claudeModelField.target = self
-                claudeModelField.action = #selector(claudeModelChanged)
-                claudeModelField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "Claude model", control: claudeModelField))
-
-                deepSeekAPIKeyField = makeSecureField(
-                    value: UserSettings.shared.deepSeekAPIKey,
-                    placeholder: "DEEPSEEK_API_KEY"
-                )
-                deepSeekAPIKeyField.target = self
-                deepSeekAPIKeyField.action = #selector(deepSeekAPIKeyChanged)
-                deepSeekAPIKeyField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "DeepSeek key", control: deepSeekAPIKeyField))
-
-                deepSeekModelField = makeTextField(
-                    value: UserSettings.shared.deepSeekModel,
-                    placeholder: UserSettings.defaultDeepSeekModel,
-                    monospaced: true
-                )
-                deepSeekModelField.target = self
-                deepSeekModelField.action = #selector(deepSeekModelChanged)
-                deepSeekModelField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "DeepSeek model", control: deepSeekModelField))
-
-                section.addArrangedSubview(makeHelpLabel(
-                    "Keys stay on this Mac. Leave these blank if you only want LM Studio or OpenRouter through fal."
-                ))
-            }
-
-            addSection(
-                "Remote Provider",
-                help: "Optional legacy fal gateway. Existing fal actions use fal billing; the writing default uses direct OpenRouter.",
-                to: stack
-            ) { section in
-                falAPIKeyField = makeSecureField(
-                    value: UserSettings.shared.falAPIKey,
-                    placeholder: "FAL_KEY"
-                )
-                falAPIKeyField.target = self
-                falAPIKeyField.action = #selector(falAPIKeyChanged)
-                falAPIKeyField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "fal key", control: falAPIKeyField))
-
-                section.addArrangedSubview(makeHelpLabel(
-                    "The palette only shows fal/OpenRouter models when this key is configured."
-                ))
-            }
-
-            addSection(
-                "Remote Models",
-                help: "Enable direct OpenRouter models for the palette. Refreshes daily when this pane opens.",
-                to: stack
-            ) { section in
-                refreshRemoteModelsButton = makeSmallButton("Refresh", action: #selector(refreshRemoteModels))
-
-                remoteCatalogFilterField = makeTextField(
-                    value: "",
-                    placeholder: "Filter models, e.g. claude, openai, deepseek, gemini",
-                    monospaced: false
-                )
-                remoteCatalogFilterField.delegate = self
-
-                let filterControl = NSStackView()
-                filterControl.orientation = .horizontal
-                filterControl.alignment = .centerY
-                filterControl.spacing = 8
-                filterControl.addArrangedSubview(remoteCatalogFilterField)
-                filterControl.addArrangedSubview(refreshRemoteModelsButton)
-                section.addArrangedSubview(makeSettingsRow(label: "Models", control: filterControl))
-
-                remoteCatalogTable = NSTableView()
-                remoteCatalogTable.headerView = nil
-                remoteCatalogTable.rowHeight = 38
-                remoteCatalogTable.intercellSpacing = NSSize(width: 0, height: 2)
-                remoteCatalogTable.backgroundColor = .clear
-                remoteCatalogTable.delegate = self
-                remoteCatalogTable.dataSource = self
-                remoteCatalogTable.style = .inset
-                remoteCatalogTable.allowsColumnResizing = true
-
-                let enabledColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("remoteEnabled"))
-                enabledColumn.width = 42
-                enabledColumn.minWidth = 42
-                enabledColumn.maxWidth = 42
-                remoteCatalogTable.addTableColumn(enabledColumn)
-
-                let modelColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("remoteModel"))
-                modelColumn.resizingMask = .autoresizingMask
-                remoteCatalogTable.addTableColumn(modelColumn)
-
-                let modelsScroll = NSScrollView()
-                modelsScroll.translatesAutoresizingMaskIntoConstraints = false
-                modelsScroll.hasVerticalScroller = true
-                modelsScroll.borderType = .bezelBorder
-                modelsScroll.documentView = remoteCatalogTable
-                section.addArrangedSubview(modelsScroll)
-                modelsScroll.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
-                modelsScroll.heightAnchor.constraint(equalToConstant: 260).isActive = true
-
-                remoteCatalogStatusLabel = makeHelpLabel("")
-                section.addArrangedSubview(remoteCatalogStatusLabel)
-
-                refreshRemoteCatalogTable()
-            }
-
-            addSection(
-                "Local Provider",
-                help: "Use LM Studio when you want fast local rewrites.",
-                to: stack
-            ) { section in
-                lmStudioURLField = makeTextField(
-                    value: UserSettings.shared.lmStudioBaseURL,
-                    placeholder: UserSettings.defaultLMStudioBaseURL,
-                    monospaced: true
-                )
-                lmStudioURLField.target = self
-                lmStudioURLField.action = #selector(lmStudioURLChanged)
-                lmStudioURLField.delegate = self
-                section.addArrangedSubview(makeSettingsRow(label: "Server URL", control: lmStudioURLField))
-
-                lmStudioModelPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-                lmStudioModelPopup.addItem(withTitle: "- not loaded -")
-                lmStudioModelPopup.target = self
-                lmStudioModelPopup.action = #selector(lmStudioModelChanged)
-                lmStudioModelPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-                refreshModelsButton = makeSmallButton("Refresh", action: #selector(refreshModels))
-
-                let modelControl = NSStackView()
-                modelControl.orientation = .horizontal
-                modelControl.alignment = .centerY
-                modelControl.spacing = 8
-                modelControl.addArrangedSubview(lmStudioModelPopup)
-                modelControl.addArrangedSubview(refreshModelsButton)
-                section.addArrangedSubview(makeSettingsRow(label: "Loaded model", control: modelControl))
-
-                lmStudioVisionCheckbox = NSButton(
-                    checkboxWithTitle: "Selected local model supports image input",
-                    target: self,
-                    action: #selector(toggleLMStudioVision)
-                )
-                lmStudioVisionCheckbox.state = UserSettings.shared.lmStudioModelSupportsImages ? .on : .off
-                section.addArrangedSubview(lmStudioVisionCheckbox)
-
-                lmStudioStatusLabel = makeHelpLabel("Click Refresh to load available models.")
-                section.addArrangedSubview(lmStudioStatusLabel)
-            }
-
-
-        }
-    }
-
-    private func makeWritingPane() -> NSView {
-        makePane { stack in
-            if let error = UserSettings.shared.writingMigrationError {
-                let warning = makeHelpLabel(error)
-                warning.textColor = .systemOrange
-                stack.addArrangedSubview(warning)
-            }
-            addSection("Models", help: "Choose a model for each of the Capsule's two actions. Add provider keys in Providers.", to: stack) { section in
-                grammarRoutePopup = makeRoutePopup(selectedRouteID: UserSettings.shared.grammarRouteID)
-                grammarRoutePopup.target = self
-                grammarRoutePopup.action = #selector(grammarRouteChanged)
-                section.addArrangedSubview(makeSettingsRow(label: "Fix Grammar", control: grammarRoutePopup))
-                customPromptRoutePopup = makeRoutePopup(selectedRouteID: UserSettings.shared.customPromptRouteID)
-                customPromptRoutePopup.target = self
-                customPromptRoutePopup.action = #selector(customPromptRouteChanged)
-                section.addArrangedSubview(makeSettingsRow(label: "Custom instruction", control: customPromptRoutePopup))
-                fallbackCheckbox = NSButton(checkboxWithTitle: "Use DeepSeek Flash if the local model is unavailable",
-                    target: self, action: #selector(toggleFallback))
-                fallbackCheckbox.state = UserSettings.shared.fallbackToClaude ? .on : .off
-                section.addArrangedSubview(fallbackCheckbox)
-            }
-            addSection("Grammar prompt", help: "Used by both the Capsule and macOS Services → Fix Grammar. Custom instructions come from what you type in the Capsule.", to: stack) { section in
-                let scroll = NSScrollView()
-                scroll.translatesAutoresizingMaskIntoConstraints = false
-                scroll.hasVerticalScroller = true
-                scroll.borderType = .bezelBorder
-                promptField = NSTextView(frame: .zero)
-                promptField.string = UserSettings.shared.grammarPrompt
-                promptField.font = .systemFont(ofSize: 13)
-                promptField.isRichText = false
-                promptField.isAutomaticQuoteSubstitutionEnabled = false
-                promptField.isAutomaticDashSubstitutionEnabled = false
-                promptField.textContainerInset = NSSize(width: 8, height: 8)
-                promptField.isVerticallyResizable = true
-                promptField.isHorizontallyResizable = false
-                promptField.textContainer?.widthTracksTextView = true
-                promptField.setAccessibilityLabel("Grammar prompt")
-                promptField.delegate = self
-                scroll.documentView = promptField
-                section.addArrangedSubview(scroll)
-                scroll.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
-                scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
-                section.addArrangedSubview(makeSmallButton("Reset grammar prompt", action: #selector(resetPrompt)))
-            }
-            if UserSettings.shared.retiredActionsRecoveryURL != nil {
-                stack.addArrangedSubview(makeSmallButton("Show recovered action presets", action: #selector(showRecoveredActions)))
-            }
-        }
+    private func makeModelsPane() -> NSView {
+        modelsPane = ModelsSettingsPane()
+        return modelsPane.view
     }
 
     private func makeHistoryPane() -> NSView {
@@ -580,19 +307,19 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 historyMetadataLabel = makeHelpLabel("")
                 section.addArrangedSubview(historyMetadataLabel)
 
-                let resultScroll = NSScrollView()
+                let resultScroll = NSTextView.scrollableTextView()
                 resultScroll.translatesAutoresizingMaskIntoConstraints = false
                 resultScroll.hasVerticalScroller = true
                 resultScroll.borderType = .bezelBorder
 
-                historyResultView = NSTextView(frame: .zero)
+                historyResultView = resultScroll.documentView as? NSTextView
                 historyResultView.isEditable = false
                 historyResultView.isSelectable = true
                 historyResultView.isRichText = true
                 historyResultView.font = .systemFont(ofSize: 12)
+                historyResultView.textColor = .labelColor
                 historyResultView.textContainerInset = NSSize(width: 8, height: 8)
                 historyResultView.string = ""
-                resultScroll.documentView = historyResultView
                 section.addArrangedSubview(resultScroll)
                 resultScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 500).isActive = true
                 resultScroll.heightAnchor.constraint(equalToConstant: 190).isActive = true
@@ -821,57 +548,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         return button
     }
 
-    private func makeProviderPopup(selected: UserSettings.Provider) -> NSPopUpButton {
-        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        for provider in UserSettings.Provider.allCases {
-            popup.addItem(withTitle: provider.label)
-        }
-        popup.selectItem(withTitle: selected.label)
-        return popup
-    }
-
-    private func makeRoutePopup(selectedRouteID: String?) -> NSPopUpButton {
-        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        populateRoutePopup(popup, selectedRouteID: selectedRouteID)
-        return popup
-    }
-
-    private func populateRoutePopup(_ popup: NSPopUpButton?, selectedRouteID: String?) {
-        guard let popup else { return }
-        popup.removeAllItems()
-        let routes = UserSettings.shared.availableModelRoutes
-        guard !routes.isEmpty else {
-            popup.addItem(withTitle: "- no available models -")
-            popup.lastItem?.isEnabled = false
-            return
-        }
-
-        for route in routes {
-            popup.addItem(withTitle: route.menuTitle)
-            popup.lastItem?.representedObject = route.id
-        }
-
-        if let selectedRouteID,
-           let index = routes.firstIndex(where: { $0.id == selectedRouteID }) {
-            popup.selectItem(at: index)
-        } else if let selectedRouteID,
-                  let route = UserSettings.shared.modelRoute(for: selectedRouteID) {
-            popup.addItem(withTitle: "\(route.menuTitle) (missing key)")
-            popup.lastItem?.representedObject = route.id
-            popup.lastItem?.isEnabled = false
-            popup.selectItem(at: popup.numberOfItems - 1)
-        }
-    }
-
-    private func selectedRouteID(from popup: NSPopUpButton?) -> String? {
-        popup?.selectedItem?.representedObject as? String
-    }
-
-    private func refreshRoutePopups() {
-        populateRoutePopup(customPromptRoutePopup, selectedRouteID: UserSettings.shared.customPromptRouteID)
-        populateRoutePopup(grammarRoutePopup, selectedRouteID: UserSettings.shared.grammarRouteID)
-    }
-
     private func renderPermissionRows() {
         permissionsStack.arrangedSubviews.forEach { view in
             permissionsStack.removeArrangedSubview(view)
@@ -1074,293 +750,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         return formatter
     }()
 
-    @objc private func refreshRemoteModels() {
-        Task { @MainActor in
-            await self.loadRemoteModelCatalog()
-        }
-    }
-
-    @MainActor
-    private func loadRemoteModelCatalog() async {
-        guard !isLoadingRemoteCatalog else { return }
-        isLoadingRemoteCatalog = true
-        defer { isLoadingRemoteCatalog = false }
-        refreshRemoteModelsButton.isEnabled = false
-        remoteCatalogStatusLabel.stringValue = "Loading OpenRouter models..."
-        remoteCatalogStatusLabel.textColor = .tertiaryLabelColor
-
-        do {
-            let models = try await OpenRouterModelsAPI.shared.listModels()
-            UserSettings.shared.remoteCatalogModels = models
-            remoteCatalogModels = models
-            refreshRemoteCatalogTable()
-            remoteCatalogStatusLabel.stringValue = "Loaded \(models.count) OpenRouter text model\(models.count == 1 ? "" : "s")."
-            remoteCatalogStatusLabel.textColor = .systemGreen
-        } catch {
-            remoteCatalogModels = UserSettings.shared.remoteCatalogModels
-            refreshRemoteCatalogTable()
-            remoteCatalogStatusLabel.stringValue = "Could not refresh OpenRouter models. Using the saved catalog."
-            remoteCatalogStatusLabel.textColor = .systemOrange
-        }
-
-        refreshRemoteModelsButton.isEnabled = true
-    }
-
-    private func refreshRemoteCatalogTable() {
-        guard remoteCatalogTable != nil else { return }
-
-        visibleRemoteCatalogModels = filteredRemoteCatalogModels()
-        remoteCatalogTable.reloadData()
-        updateRemoteCatalogStatus()
-    }
-
-    private func filteredRemoteCatalogModels() -> [UserSettings.RemoteCatalogModel] {
-        let query = remoteCatalogFilterField?.stringValue
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased() ?? ""
-
-        let models: [UserSettings.RemoteCatalogModel]
-        if query.isEmpty {
-            models = remoteCatalogModels
-        } else {
-            models = remoteCatalogModels.filter { model in
-                model.id.lowercased().contains(query)
-                    || model.displayTitle.lowercased().contains(query)
-            }
-        }
-
-        return models.sorted { lhs, rhs in
-            let lhsEnabled = isRemoteModelEnabled(lhs)
-            let rhsEnabled = isRemoteModelEnabled(rhs)
-            if lhsEnabled != rhsEnabled {
-                return lhsEnabled
-            }
-            return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
-        }
-    }
-
-    private func updateRemoteCatalogStatus() {
-        guard remoteCatalogStatusLabel != nil else { return }
-
-        let shown = visibleRemoteCatalogModels.count
-        let total = remoteCatalogModels.count
-        let enabled = modelRoutes.count
-
-        if shown == 0 {
-            remoteCatalogStatusLabel.stringValue = "No OpenRouter models match that filter."
-            remoteCatalogStatusLabel.textColor = .systemOrange
-        } else {
-            remoteCatalogStatusLabel.stringValue = "\(enabled) enabled. Showing \(shown) of \(total) saved OpenRouter models. Click Refresh to update the catalog."
-            remoteCatalogStatusLabel.textColor = .tertiaryLabelColor
-        }
-    }
-
-    private func routeID(for catalogModel: UserSettings.RemoteCatalogModel) -> String {
-        UserSettings.ModelRoute.makeID(provider: .openRouter, model: catalogModel.id)
-    }
-
-    private func isRemoteModelEnabled(_ catalogModel: UserSettings.RemoteCatalogModel) -> Bool {
-        modelRoutes.contains { $0.id == routeID(for: catalogModel) }
-    }
-
-    @objc private func toggleRemoteCatalogModel(_ sender: NSButton) {
-        let row = sender.tag
-        guard visibleRemoteCatalogModels.indices.contains(row) else { return }
-
-        let catalogModel = visibleRemoteCatalogModels[row]
-        let id = routeID(for: catalogModel)
-
-        if sender.state == .on {
-            guard !modelRoutes.contains(where: { $0.id == id }) else { return }
-            modelRoutes.append(UserSettings.ModelRoute(
-                id: id,
-                name: catalogModel.displayTitle,
-                provider: .openRouter,
-                model: catalogModel.id,
-                supportsImages: catalogModel.supportsImages
-            ))
-        } else if modelRoutes.count > 1 {
-            modelRoutes.removeAll { $0.id == id }
-        } else {
-            sender.state = .on
-            NSSound.beep()
-            return
-        }
-
-        saveModelRoutes()
-        remoteCatalogTable.reloadData()
-        updateRemoteCatalogStatus()
-    }
-
-    private func saveModelRoutes() {
-        UserSettings.shared.configuredModelRoutes = modelRoutes
-        modelRoutes = UserSettings.shared.configuredModelRoutes
-        refreshRoutePopups()
-    }
-
-    @objc private func falAPIKeyChanged() {
-        UserSettings.shared.falAPIKey = falAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        reportCredentialError()
-        refreshRoutePopups()
-    }
-
-    @objc private func openAIAPIKeyChanged() {
-        UserSettings.shared.openAIAPIKey = openAIAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        reportCredentialError()
-        refreshRoutePopups()
-    }
-
-    @objc private func openAIModelChanged() {
-        UserSettings.shared.openAIModel = openAIModelField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        refreshRoutePopups()
-    }
-
-    @objc private func claudeAPIKeyChanged() {
-        UserSettings.shared.apiKey = claudeAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        reportCredentialError()
-        refreshRoutePopups()
-    }
-
-    @objc private func claudeModelChanged() {
-        UserSettings.shared.claudeModel = claudeModelField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        refreshRoutePopups()
-    }
-
-    @objc private func deepSeekAPIKeyChanged() {
-        UserSettings.shared.deepSeekAPIKey = deepSeekAPIKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        reportCredentialError()
-        refreshRoutePopups()
-    }
-
-    @objc private func deepSeekModelChanged() {
-        UserSettings.shared.deepSeekModel = deepSeekModelField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        refreshRoutePopups()
-    }
-
-    private func reportCredentialError() {
-        if let error = UserSettings.shared.credentialStorageError { showStorageError(error) }
-    }
-
-    @objc private func openRouterAPIKeyChanged() {
-        UserSettings.shared.openRouterAPIKey = openRouterAPIKeyField.stringValue
-        reportCredentialError()
-        refreshRoutePopups()
-    }
-
-    @objc private func useRecommendedWritingModel() {
-        UserSettings.shared.useRecommendedWritingModel()
-        modelRoutes = UserSettings.shared.configuredModelRoutes
-        refreshRoutePopups()
-        refreshRemoteCatalogTable()
-    }
-
-    @objc private func lmStudioURLChanged() {
-        UserSettings.shared.lmStudioBaseURL = lmStudioURLField.stringValue
-        lmStudioURLField.stringValue = UserSettings.shared.lmStudioBaseURL
-    }
-
-    @objc private func lmStudioModelChanged() {
-        guard let title = lmStudioModelPopup.selectedItem?.title,
-              !title.hasPrefix("-") else { return }
-        UserSettings.shared.lmStudioModel = title
-        updateLMStudioVisionCheckbox(for: title)
-        refreshRoutePopups()
-    }
-
-    @objc private func toggleLMStudioVision() {
-        guard let title = lmStudioModelPopup.selectedItem?.title,
-              !title.hasPrefix("-") else { return }
-        UserSettings.shared.setLocalModel(title, supportsImages: lmStudioVisionCheckbox.state == .on)
-        refreshRoutePopups()
-    }
-
-    @objc private func refreshModels() {
-        Task { @MainActor in
-            await self.loadModelsList(isInitialLoad: false)
-        }
-    }
-
-    @MainActor
-    private func loadModelsList(isInitialLoad: Bool) async {
-        if !isInitialLoad {
-            lmStudioStatusLabel.stringValue = "Loading models..."
-            lmStudioStatusLabel.textColor = .tertiaryLabelColor
-            refreshModelsButton.isEnabled = false
-        }
-
-        do {
-            let models = try await LMStudioAPI.shared.listModels()
-            UserSettings.shared.lmStudioKnownModels = models
-            lmStudioModelPopup.removeAllItems()
-
-            if models.isEmpty {
-                lmStudioModelPopup.addItem(withTitle: "- no models loaded -")
-                updateLMStudioVisionCheckbox(for: nil)
-                lmStudioStatusLabel.stringValue = "LM Studio is running but no chat models are loaded."
-                lmStudioStatusLabel.textColor = .systemOrange
-            } else {
-                for model in models {
-                    lmStudioModelPopup.addItem(withTitle: model)
-                }
-                let saved = UserSettings.shared.lmStudioModel
-                if !saved.isEmpty, models.contains(saved) {
-                    lmStudioModelPopup.selectItem(withTitle: saved)
-                    updateLMStudioVisionCheckbox(for: saved)
-                } else if let first = models.first {
-                    lmStudioModelPopup.selectItem(withTitle: first)
-                    UserSettings.shared.lmStudioModel = first
-                    updateLMStudioVisionCheckbox(for: first)
-                }
-                let adopted = UserSettings.shared.adoptLocalRouteWhereCurrentIsUnavailable()
-                lmStudioStatusLabel.stringValue = "Connected. \(models.count) model\(models.count == 1 ? "" : "s") available."
-                    + (adopted ? " Writing now uses the local model." : "")
-                lmStudioStatusLabel.textColor = .systemGreen
-            }
-        } catch {
-            lmStudioModelPopup.removeAllItems()
-            lmStudioModelPopup.addItem(withTitle: "- not connected -")
-            updateLMStudioVisionCheckbox(for: nil)
-            lmStudioStatusLabel.stringValue = isInitialLoad
-                ? "LM Studio not reachable. Start the server and click Refresh."
-                : error.localizedDescription
-            lmStudioStatusLabel.textColor = isInitialLoad ? .tertiaryLabelColor : .systemRed
-        }
-
-        refreshModelsButton.isEnabled = true
-        refreshRoutePopups()
-    }
-
-    private func updateLMStudioVisionCheckbox(for model: String? = nil) {
-        let selected = model ?? lmStudioModelPopup.selectedItem?.title ?? UserSettings.shared.lmStudioModel
-        let isRealModel = !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !selected.hasPrefix("-")
-        lmStudioVisionCheckbox?.isEnabled = isRealModel
-        lmStudioVisionCheckbox?.state = isRealModel && UserSettings.shared.localModelSupportsImages(selected)
-            ? .on
-            : .off
-    }
-
-    @objc private func customPromptRouteChanged() {
-        guard let routeID = selectedRouteID(from: customPromptRoutePopup),
-              let route = UserSettings.shared.modelRoute(for: routeID) else { return }
-        UserSettings.shared.customPromptRouteID = routeID
-        UserSettings.shared.customPromptProvider = route.provider
-    }
-
-    @objc private func toggleFallback() {
-        UserSettings.shared.fallbackToClaude = fallbackCheckbox.state == .on
-    }
-
-    @objc private func grammarRouteChanged() {
-        guard let routeID = selectedRouteID(from: grammarRoutePopup) else { return }
-        UserSettings.shared.grammarRouteID = routeID
-    }
-
-    @objc private func resetPrompt() {
-        UserSettings.shared.grammarPrompt = UserSettings.defaultFixPrompt
-        promptField.string = UserSettings.defaultFixPrompt
-    }
-
     @objc private func showRecoveredActions() {
         guard let url = UserSettings.shared.retiredActionsRecoveryURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -1478,15 +867,11 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             NSEvent.removeMonitor(monitor)
             shortcutMonitor = nil
         }
-        UserSettings.shared.grammarPrompt = promptField.string
     }
 }
 
 extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
     func numberOfRows(in tableView: NSTableView) -> Int {
-        if remoteCatalogTable != nil, tableView === remoteCatalogTable {
-            return visibleRemoteCatalogModels.count
-        }
         if historyTable != nil, tableView === historyTable {
             return historyEntries.count
         }
@@ -1494,15 +879,6 @@ extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        if remoteCatalogTable != nil, tableView === remoteCatalogTable {
-            guard visibleRemoteCatalogModels.indices.contains(row) else { return nil }
-            let model = visibleRemoteCatalogModels[row]
-            if tableColumn?.identifier.rawValue == "remoteEnabled" {
-                return makeRemoteEnabledCell(model: model, row: row)
-            }
-            return makeRemoteModelCell(model: model)
-        }
-
         if historyTable != nil, tableView === historyTable {
             guard historyEntries.indices.contains(row) else { return nil }
             return makeHistoryCell(entry: historyEntries[row])
@@ -1522,86 +898,12 @@ extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         if let tableView = notification.object as? NSTableView,
-           remoteCatalogTable != nil,
-           tableView === remoteCatalogTable {
-            return
-        }
-
-        if let tableView = notification.object as? NSTableView,
            historyTable != nil,
            tableView === historyTable {
             updateHistoryDetail()
             return
         }
         showPane(at: sidebarTable.selectedRow)
-    }
-
-    private func makeRemoteEnabledCell(model: UserSettings.RemoteCatalogModel, row: Int) -> NSView {
-        let cell = NSTableCellView()
-        cell.identifier = NSUserInterfaceItemIdentifier("RemoteEnabledCell")
-
-        let checkbox = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleRemoteCatalogModel))
-        checkbox.translatesAutoresizingMaskIntoConstraints = false
-        checkbox.state = isRemoteModelEnabled(model) ? .on : .off
-        checkbox.tag = row
-        checkbox.toolTip = checkbox.state == .on
-            ? "Enabled in Companion"
-            : "Enable this model in Companion"
-        cell.addSubview(checkbox)
-
-        NSLayoutConstraint.activate([
-            checkbox.centerXAnchor.constraint(equalTo: cell.centerXAnchor),
-            checkbox.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-        ])
-
-        return cell
-    }
-
-    private func makeRemoteModelCell(model: UserSettings.RemoteCatalogModel) -> NSView {
-        let cell = NSTableCellView()
-        cell.identifier = NSUserInterfaceItemIdentifier("RemoteModelCell")
-
-        let row = NSStackView()
-        row.translatesAutoresizingMaskIntoConstraints = false
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 8
-        cell.addSubview(row)
-
-        let textStack = NSStackView()
-        textStack.orientation = .vertical
-        textStack.alignment = .leading
-        textStack.spacing = 1
-
-        let title = NSTextField(labelWithString: model.displayTitle)
-        title.font = .systemFont(ofSize: 12, weight: .medium)
-        title.lineBreakMode = .byTruncatingTail
-        textStack.addArrangedSubview(title)
-
-        let slug = NSTextField(labelWithString: model.routeModel)
-        slug.font = .monospacedSystemFont(ofSize: 10.5, weight: .regular)
-        slug.textColor = .secondaryLabelColor
-        slug.lineBreakMode = .byTruncatingMiddle
-        textStack.addArrangedSubview(slug)
-
-        row.addArrangedSubview(textStack)
-        textStack.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        if model.supportsImages {
-            let imageBadge = NSTextField(labelWithString: "Images")
-            imageBadge.font = .systemFont(ofSize: 10.5, weight: .semibold)
-            imageBadge.textColor = .secondaryLabelColor
-            imageBadge.setContentHuggingPriority(.required, for: .horizontal)
-            row.addArrangedSubview(imageBadge)
-        }
-
-        NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
-            row.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-            row.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-        ])
-
-        return cell
     }
 
     private func makeHistoryCell(entry: GenerationHistoryStore.Entry) -> NSView {
@@ -1667,40 +969,6 @@ extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
         ])
 
         return cell
-    }
-}
-
-extension SettingsWindow: NSTextViewDelegate {
-    func textDidChange(_ notification: Notification) {
-        UserSettings.shared.grammarPrompt = promptField.string
-    }
-}
-
-extension SettingsWindow: NSTextFieldDelegate {
-    func controlTextDidChange(_ notification: Notification) {
-        guard let field = notification.object as? NSTextField else { return }
-
-        if field === openRouterAPIKeyField {
-            openRouterAPIKeyChanged()
-        } else if field === falAPIKeyField {
-            falAPIKeyChanged()
-        } else if field === openAIAPIKeyField {
-            openAIAPIKeyChanged()
-        } else if field === openAIModelField {
-            openAIModelChanged()
-        } else if field === claudeAPIKeyField {
-            claudeAPIKeyChanged()
-        } else if field === claudeModelField {
-            claudeModelChanged()
-        } else if field === deepSeekAPIKeyField {
-            deepSeekAPIKeyChanged()
-        } else if field === deepSeekModelField {
-            deepSeekModelChanged()
-        } else if field === remoteCatalogFilterField {
-            refreshRemoteCatalogTable()
-        } else if field === lmStudioURLField {
-            lmStudioURLChanged()
-        }
     }
 }
 

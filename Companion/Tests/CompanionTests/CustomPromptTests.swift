@@ -40,4 +40,13 @@ final class CustomPromptTests: XCTestCase {
     func testEmptyInstructionIsRejected() {
         XCTAssertThrowsError(try RewriteDispatcher.customPrompt(text: "Some text", instruction: " \n "))
     }
+
+    func testFixGrammarIsAPresetInstructionThroughTheSamePath() throws {
+        let preset = RewriteDispatcher.grammarInstruction
+        let prompt = try RewriteDispatcher.customPrompt(text: "Tomorrow I wont make it", instruction: preset)
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(prompt.userText.utf8)) as? [String: String])
+        XCTAssertEqual(payload["instruction"], preset)
+        XCTAssertEqual(payload["selected_text"], "Tomorrow I wont make it")
+        XCTAssertTrue(prompt.systemPrompt.hasPrefix("Apply the user's instruction"))
+    }
 }

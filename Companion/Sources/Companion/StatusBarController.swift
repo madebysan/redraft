@@ -7,6 +7,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private weak var appDelegate: AppDelegate?
     private var animationTimer: Timer?
     private var statusMenuItem: NSMenuItem?
+    private var setupMenuItem: NSMenuItem?
     private var hasPermissionWarning = false
 
     init(appDelegate: AppDelegate) {
@@ -41,6 +42,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             statusMenuItem?.image?.isTemplate = true
         }
         menu.addItem(statusMenuItem!)
+
+        // What the next rewrite will use. Click to change it.
+        setupMenuItem = NSMenuItem(title: "Using: \(UserSettings.shared.setupSummary)",
+            action: #selector(AppDelegate.openModelsSettings), keyEquivalent: "")
+        setupMenuItem?.target = appDelegate
+        setupMenuItem?.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
+        setupMenuItem?.image?.isTemplate = true
+        menu.addItem(setupMenuItem!)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -93,6 +102,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let inputOK = SettingsWindow.checkInputMonitoring()
             let allOK = accessOK && inputOK
             self.showPermissionWarning(!allOK)
+            self.setupMenuItem?.title = "Using: \(UserSettings.shared.setupSummary)"
         }
     }
 

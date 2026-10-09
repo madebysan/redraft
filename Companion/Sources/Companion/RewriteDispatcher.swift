@@ -26,17 +26,16 @@ final class RewriteDispatcher {
         }
     }
 
-    // Capsule and macOS Services share this prompt and model configuration.
+    // Fix Grammar is a preset instruction through the same path as anything typed in the Capsule.
+    static let grammarInstruction = "Fix grammar, spelling, and punctuation. Keep the tone, style, and meaning. Do not add or remove information."
+
+    // The Capsule and macOS Services share this preset and the single configured model.
     func generateGrammar(_ text: String) async throws -> GenerationResult {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw DispatchError.emptySelectionForAction("Fix Grammar")
         }
-        let settings = UserSettings.shared
-        if let error = settings.writingMigrationError { throw DispatchError.noProviderAvailable(error) }
-        guard let route = settings.modelRoute(for: settings.grammarRouteID) else {
-            throw DispatchError.noProviderAvailable("Choose a grammar model in Settings → Writing.")
-        }
-        return try await generate(text, systemPrompt: settings.grammarPrompt, route: route)
+        if let error = UserSettings.shared.writingMigrationError { throw DispatchError.noProviderAvailable(error) }
+        return try await generate(text, customInstruction: Self.grammarInstruction, route: .auto, images: [])
     }
 
     func rewrite(_ text: String, customInstruction: String) async throws -> String {
@@ -54,7 +53,7 @@ final class RewriteDispatcher {
         let defaultRoute = settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0) }
             ?? settings.defaultModelRoute(for: settings.customPromptProvider)
         guard let resolvedRoute = route.routeOverride ?? defaultRoute else {
-            throw DispatchError.noProviderAvailable("No model route is configured for custom prompts.")
+            throw DispatchError.noProviderAvailable("Choose a model in Settings → Models.")
         }
         return try await generate(
             prompt.userText,
@@ -101,10 +100,10 @@ final class RewriteDispatcher {
     ) async throws -> GenerationResult {
         let settings = UserSettings.shared
         if webSearch && route.provider != .openRouter {
-            throw DispatchError.noProviderAvailable("Web search requires an OpenRouter model. Choose one in Settings → Writing.")
+            throw DispatchError.noProviderAvailable("Web search requires an OpenRouter model. Choose one in Settings → Models.")
         }
         guard settings.hasAccess(to: route.provider) else {
-            throw DispatchError.noProviderAvailable("Add a \(route.provider.shortLabel) API key in Settings or choose another route.")
+            throw DispatchError.noProviderAvailable("Add a \(route.provider.shortLabel) API key in Settings → Models or choose another provider.")
         }
         try validateImages(images, route: route)
 
@@ -164,7 +163,7 @@ final class RewriteDispatcher {
                 logger.notice("local provider failed: \(error.localizedDescription)")
 
                 guard settings.fallbackToClaude else { throw error }
-                guard let remoteRoute = settings.inexpensiveFallbackRoute else {
+                guard let remoteRoute = settings.cloudFallbackRoute else {
                     // Keep the local failure visible; it is the thing the user can fix.
                     throw DispatchError.noProviderAvailable(
                         "\(error.localizedDescription) No remote fallback is set up, so nothing else was tried."
@@ -172,7 +171,7 @@ final class RewriteDispatcher {
                 }
                 try validateImages(images, route: remoteRoute)
 
-                notifyFallback(reason: error.localizedDescription)
+                notifyFallback(route: remoteRoute, reason: error.localizedDescription)
                 return try await generate(
                     text,
                     systemPrompt: systemPrompt,
@@ -187,15 +186,15 @@ final class RewriteDispatcher {
         guard !images.isEmpty else { return }
         guard route.supportsImages else {
             throw DispatchError.imageUnsupported(
-                "\(route.displayModel) cannot read images. Choose a model marked Images in Settings."
+                "\(route.displayModel) cannot read images. Choose a model marked Images in Settings → Models."
             )
         }
     }
 
-    private func notifyFallback(reason: String) {
+    private func notifyFallback(route: UserSettings.ModelRoute, reason: String) {
         let content = UNMutableNotificationContent()
         content.title = "Companion"
-        content.body = "Local model failed, used DeepSeek Flash instead. \(reason)"
+        content.body = "Local model failed, used \(route.displayModel) instead. \(reason)"
         content.sound = nil
 
         let request = UNNotificationRequest(

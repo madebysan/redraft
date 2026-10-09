@@ -78,13 +78,12 @@ final class LocalServerTests: XCTestCase {
         settings.lmStudioKnownModels = ["gemma-4-12b-it", "qwen3-8b"]
         settings.lmStudioModel = "qwen3-8b"
         XCTAssertTrue(settings.adoptLocalRouteWhereCurrentIsUnavailable())
-        XCTAssertEqual(settings.modelRoute(for: settings.grammarRouteID)?.model, "qwen3-8b")
         XCTAssertEqual(settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0)?.model }, "qwen3-8b")
         // A route the user can actually use is left alone.
         settings.openRouterAPIKey = "test-only"
         settings.useRecommendedWritingModel()
         XCTAssertFalse(settings.adoptLocalRouteWhereCurrentIsUnavailable())
-        XCTAssertEqual(settings.modelRoute(for: settings.grammarRouteID)?.provider, .openRouter)
+        XCTAssertEqual(settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0)?.provider }, .openRouter)
     }
 
     // Full dispatcher path against a real local server. Opt in with COMPANION_LOCAL_SMOKE=1;

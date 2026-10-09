@@ -2,6 +2,28 @@
 
 All notable changes to Companion are documented here.
 
+## [0.5.3] - 2026-10-09
+
+### Changed
+
+- Fix Grammar is now a preset instruction that runs through the same path as anything typed in the Capsule, on the single configured model. The separate grammar prompt, its editor in Settings → Writing, and the second model route are gone. Settings → Writing is removed; its migration notice moved to General. "Recommended" in Settings → Models is now one model, Gemini Flash Lite; DeepSeek Flash remains the fallback when a local model fails.
+- In the Capsule's instruction field, Return with nothing typed runs Fix Grammar. The placeholder says so.
+- When the result can't be pasted in place, because the app doesn't let Companion verify the selection, the selection changed, or the original app couldn't be brought back, Companion no longer opens the "Your rewrite" panel. The result is copied to the clipboard, the Capsule shows a brief clipboard icon, and a notification says to paste with ⌘V. The panel could be left on screen in some apps with no way to close it.
+
+## [0.5.0] - 2026-10-08
+
+### Changed
+
+- Settings → Providers and the model half of Settings → Writing are now one pane, Settings → Models, with a single Local or Cloud switch. Only the chosen branch is shown: Local has a connection status, one model menu and the cloud fallback; Cloud has one provider, one API key and one model. "Recommended" keeps the tested Gemini Flash Lite + DeepSeek Flash pair. Saved keys and model choices are preserved; an older setup with two different OpenRouter models shows as "Custom" until a new choice is made.
+- Onboarding asks Local or Cloud first. Local opens Settings → Models to connect LM Studio; Cloud asks for one provider and one key.
+- The fal gateway appears as a provider only when a fal key already exists.
+- The menu bar shows what the next rewrite will use, for example "Using: Cloud · OpenRouter · Recommended" or "Using: Local · qwen3-8b". Click it to open Models.
+- When a local model fails, the fallback uses the saved Cloud choice when its key exists, then the tested OpenRouter model as before.
+
+### Added
+
+- "Check key" in Settings → Models confirms an OpenRouter, OpenAI, Claude or DeepSeek key with a free read-only request.
+
 ## [0.4.1] - 2026-10-06
 
 ### Fixed

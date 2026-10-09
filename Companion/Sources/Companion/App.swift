@@ -21,11 +21,10 @@ struct CompanionApp {
         }
         if ProcessInfo.processInfo.arguments.contains("--verify-configuration") {
             let settings = UserSettings.shared
-            let configured = settings.modelRoute(for: settings.grammarRouteID) != nil
-                && settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0) } != nil
+            let configured = settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0) } != nil
             let accessible = settings.hasAccess(to: .openRouter)
             let secure = settings.credentialStorageError == nil && settings.writingMigrationError == nil
-            print("Grammar and custom instruction routes configured: \(configured)")
+            print("Capsule model route configured: \(configured)")
             print("OpenRouter key accessible in Keychain: \(accessible)")
             print("Credential migration completed without errors: \(secure)")
             if let recovery = settings.retiredActionsRecoveryURL {

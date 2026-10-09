@@ -39,8 +39,7 @@ final class UserSettings {
                 .appendingPathComponent("Companion/Recovery"))
         do {
             try WritingSettingsMigration.migrate(defaults: defaults, recoveryDirectory: recoveryDirectory,
-                defaultPrompt: Self.defaultFixPrompt, defaultRouteID: Self.recommendedWritingRoute.id,
-                defaultCustomRouteID: Self.recommendedInstructionRoute.id,
+                defaultRouteID: Self.recommendedInstructionRoute.id,
                 routeForProvider: { raw in Provider(rawValue: raw).flatMap { self.defaultModelRoute(for: $0)?.id } })
         } catch {
             writingMigrationError = "Couldn't migrate writing settings. Old actions are preserved. Check available disk space and reopen Companion."
@@ -62,6 +61,39 @@ final class UserSettings {
     var paletteDefaultView: PaletteDefaultView {
         get { PaletteDefaultView(rawValue: defaults.string(forKey: "paletteDefaultView") ?? "") ?? .icons }
         set { defaults.set(newValue.rawValue, forKey: "paletteDefaultView") }
+    }
+
+    // Which kind of model runs the Capsule: a local server on this Mac, or a cloud provider.
+    enum ModelMode: String, CaseIterable {
+        case local
+        case cloud
+
+        var title: String {
+            switch self {
+            case .local: return "Local"
+            case .cloud: return "Cloud"
+            }
+        }
+    }
+
+    // What the single Cloud model control means when the provider is OpenRouter.
+    enum OpenRouterSelection: Equatable {
+        case recommended            // the tested model: Gemini Flash Lite
+        case model(String)          // one catalog model
+
+        var storedValue: String {
+            switch self {
+            case .recommended: return "recommended"
+            case .model(let model): return model
+            }
+        }
+
+        init(storedValue: String) {
+            switch storedValue {
+            case "recommended", "custom": self = .recommended
+            default: self = .model(storedValue)
+            }
+        }
     }
 
     enum Provider: String, CaseIterable, Codable {
@@ -165,14 +197,10 @@ final class UserSettings {
         static let remoteCatalogModels = "remoteCatalogModels"
         static let didImportLegacyCompanionV2Defaults = "didImportLegacyCompanionV2Defaults"
         static let didImportLegacyRewriteDefaults = "didImportLegacyRewriteDefaults"
+        static let modelMode = "modelMode"
+        static let cloudProvider = "cloudProvider"
+        static let cloudOpenRouterModel = "cloudOpenRouterModel"
     }
-
-    // Default prompt — minimal corrections only
-    static let defaultFixPrompt = """
-        Rewrite the following text, fixing any grammar, spelling, and punctuation errors. \
-        Preserve the original tone, style, and meaning. Do not add or remove information. \
-        Only return the corrected text with no preamble, explanation, or quotes.
-        """
 
     static let defaultLMStudioBaseURL = "http://127.0.0.1:1234"
     static let defaultOpenAIModel = OpenAIAPI.defaultModelName
@@ -383,74 +411,193 @@ final class UserSettings {
         return now.timeIntervalSince(updated) >= 24 * 60 * 60 || updated > now
     }
 
-    var grammarPrompt: String {
-        get {
-            let value = defaults.string(forKey: "grammarPrompt") ?? Self.defaultFixPrompt
-            return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Self.defaultFixPrompt : value
-        }
-        set { defaults.set(newValue, forKey: "grammarPrompt") }
-    }
-
-    var grammarRouteID: String {
-        get { defaults.string(forKey: "grammarRouteID") ?? Self.recommendedWritingRoute.id }
-        set { defaults.set(newValue, forKey: "grammarRouteID") }
-    }
-
     var retiredActionsRecoveryURL: URL? {
         defaults.string(forKey: "retiredActionsRecoveryPath").map { URL(fileURLWithPath: $0) }
     }
 
     func useRecommendedWritingModel() {
-        let route = Self.recommendedWritingRoute
-        var routes = configuredModelRoutes
-        for recommended in [route, Self.recommendedInstructionRoute] {
-            if !routes.contains(where: { $0.id == recommended.id }) { routes.append(recommended) }
-        }
-        configuredModelRoutes = routes
-        grammarRouteID = route.id
-        customPromptRouteID = Self.recommendedInstructionRoute.id
+        defaults.set(Provider.openRouter.rawValue, forKey: Keys.cloudProvider)
+        defaults.set(OpenRouterSelection.recommended.storedValue, forKey: Keys.cloudOpenRouterModel)
+        defaults.set(ModelMode.cloud.rawValue, forKey: Keys.modelMode)
+        applyCloudSelection()
     }
 
+    // Point both Capsule actions at one provider. Local needs a known local model first.
     @discardableResult
     func useWritingProvider(_ provider: Provider) -> Bool {
-        if provider == .openRouter { useRecommendedWritingModel(); return true }
-        let route: ModelRoute
-        if provider == .fal {
-            route = ModelRoute(id: ModelRoute.makeID(provider: .fal, model: falModel), name: "fal",
-                provider: .fal, model: falModel, supportsImages: falModelSupportsImages)
-            var routes = configuredModelRoutes
-            if !routes.contains(where: { $0.id == route.id }) { routes.append(route) }
-            configuredModelRoutes = routes
-        } else {
-            guard let selected = allModelRoutes.first(where: { $0.provider == provider }) else { return false }
-            route = selected
+        if provider == .lmStudio {
+            guard applyLocalSelection() else { return false }
+            defaults.set(ModelMode.local.rawValue, forKey: Keys.modelMode)
+            return true
         }
-        grammarRouteID = route.id
-        customPromptRouteID = route.id
+        defaults.set(provider.rawValue, forKey: Keys.cloudProvider)
+        if provider == .openRouter {
+            defaults.set(OpenRouterSelection.recommended.storedValue, forKey: Keys.cloudOpenRouterModel)
+        }
+        defaults.set(ModelMode.cloud.rawValue, forKey: Keys.modelMode)
+        applyCloudSelection()
         return true
     }
 
-    // After a local model list loads, point writing actions at the local model when their
-    // current route needs an API key the user doesn't have. Without this, a local-only Mac keeps
-    // the cloud defaults and every rewrite fails asking for an OpenRouter key.
+    // MARK: Local or Cloud
+
+    var modelMode: ModelMode {
+        get {
+            if let raw = defaults.string(forKey: Keys.modelMode), let mode = ModelMode(rawValue: raw) { return mode }
+            // Upgrades: whatever the Capsule runs on today decides the starting mode.
+            return customPromptRouteID.flatMap { modelRoute(for: $0)?.provider } == .lmStudio ? .local : .cloud
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: Keys.modelMode)
+            switch newValue {
+            case .local: applyLocalSelection()
+            case .cloud: applyCloudSelection()
+            }
+        }
+    }
+
+    var cloudProvider: Provider {
+        get {
+            if let raw = defaults.string(forKey: Keys.cloudProvider), let provider = Provider(rawValue: raw),
+               provider != .lmStudio { return provider }
+            let current = customPromptRouteID.flatMap { modelRoute(for: $0)?.provider } ?? customPromptProvider
+            return current == .lmStudio ? .openRouter : current
+        }
+        set {
+            guard newValue != .lmStudio else { return }
+            defaults.set(newValue.rawValue, forKey: Keys.cloudProvider)
+            if modelMode == .cloud { applyCloudSelection() }
+        }
+    }
+
+    var openRouterSelection: OpenRouterSelection {
+        get {
+            if let raw = defaults.string(forKey: Keys.cloudOpenRouterModel), !raw.isEmpty {
+                return OpenRouterSelection(storedValue: raw)
+            }
+            let current = customPromptRouteID.flatMap { modelRoute(for: $0) }
+            if current?.id == Self.recommendedInstructionRoute.id { return .recommended }
+            if let current, current.provider == .openRouter { return .model(current.model) }
+            return .recommended
+        }
+        set {
+            defaults.set(newValue.storedValue, forKey: Keys.cloudOpenRouterModel)
+            if modelMode == .cloud, cloudProvider == .openRouter { applyCloudSelection() }
+        }
+    }
+
+    // The route the Cloud choice resolves to, whether or not Cloud is the active mode.
+    func cloudRoute() -> ModelRoute? {
+        switch cloudProvider {
+        case .openRouter:
+            switch openRouterSelection {
+            case .recommended:
+                return Self.recommendedInstructionRoute
+            case .model(let model):
+                let catalog = remoteCatalogModels.first { $0.id == model }
+                return ModelRoute(
+                    id: ModelRoute.makeID(provider: .openRouter, model: model),
+                    name: catalog?.displayTitle ?? model,
+                    provider: .openRouter,
+                    model: model,
+                    supportsImages: catalog?.supportsImages ?? Self.isKnownVisionModel(model)
+                )
+            }
+        case .fal:
+            return ModelRoute(id: ModelRoute.makeID(provider: .fal, model: falModel), name: "fal",
+                provider: .fal, model: falModel, supportsImages: falModelSupportsImages)
+        case .openAI, .claude, .deepSeek:
+            return directModelRoutes.first { $0.provider == cloudProvider }
+        case .lmStudio:
+            return nil
+        }
+    }
+
+    func applyCloudSelection() {
+        guard let route = cloudRoute() else { return }
+        if route.provider == .openRouter || route.provider == .fal {
+            var configured = configuredModelRoutes
+            if !configured.contains(where: { $0.id == route.id }) { configured.append(route) }
+            configuredModelRoutes = configured
+        }
+        customPromptRouteID = route.id
+    }
+
+    @discardableResult
+    func applyLocalSelection() -> Bool {
+        let selectedKey = normalizedModelKey(lmStudioModel)
+        guard let local = localModelRoutes.first(where: { normalizedModelKey($0.model) == selectedKey })
+            ?? localModelRoutes.first else { return false }
+        if lmStudioModel.isEmpty { lmStudioModel = local.model }
+        customPromptRouteID = local.id
+        return true
+    }
+
+    func apiKey(for provider: Provider) -> String {
+        switch provider {
+        case .openAI: return openAIAPIKey
+        case .claude: return apiKey
+        case .deepSeek: return deepSeekAPIKey
+        case .fal: return falAPIKey
+        case .openRouter: return openRouterAPIKey
+        case .lmStudio: return ""
+        }
+    }
+
+    func setAPIKey(_ value: String, for provider: Provider) {
+        switch provider {
+        case .openAI: openAIAPIKey = value
+        case .claude: apiKey = value
+        case .deepSeek: deepSeekAPIKey = value
+        case .fal: falAPIKey = value
+        case .openRouter: openRouterAPIKey = value
+        case .lmStudio: break
+        }
+    }
+
+    // One line for the menu bar: what the next rewrite will use.
+    var setupSummary: String {
+        switch modelMode {
+        case .local:
+            let model = lmStudioModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            return model.isEmpty ? "Local · no model loaded" : "Local · \(model)"
+        case .cloud:
+            let model: String
+            switch cloudProvider {
+            case .openRouter:
+                switch openRouterSelection {
+                case .recommended: model = "Recommended"
+                case .model(let id): model = id
+                }
+            case .openAI: model = openAIModel
+            case .claude: model = claudeModel
+            case .deepSeek: model = deepSeekModel
+            case .fal: model = falModel
+            case .lmStudio: model = ""
+            }
+            let key = hasAccess(to: cloudProvider) ? "" : " · no key"
+            return "Cloud · \(cloudProvider.shortLabel) · \(model)\(key)"
+        }
+    }
+
+    // After a local model list loads, point the Capsule at the local model when its current
+    // route needs an API key the user doesn't have. Without this, a local-only Mac keeps the
+    // cloud default and every rewrite fails asking for an OpenRouter key.
     @discardableResult
     func adoptLocalRouteWhereCurrentIsUnavailable() -> Bool {
         let selectedKey = normalizedModelKey(lmStudioModel)
         guard let local = localModelRoutes.first(where: { normalizedModelKey($0.model) == selectedKey })
             ?? localModelRoutes.first else { return false }
-        var changed = false
-        if availableModelRoute(for: grammarRouteID) == nil {
-            grammarRouteID = local.id
-            changed = true
-        }
-        if customPromptRouteID.flatMap({ availableModelRoute(for: $0) }) == nil {
-            customPromptRouteID = local.id
-            changed = true
-        }
-        return changed
+        guard customPromptRouteID.flatMap({ availableModelRoute(for: $0) }) == nil else { return false }
+        customPromptRouteID = local.id
+        defaults.set(ModelMode.local.rawValue, forKey: Keys.modelMode)
+        return true
     }
 
-    var inexpensiveFallbackRoute: ModelRoute? {
+    // Used when a local rewrite fails: the Cloud choice if its key exists, else the inexpensive
+    // OpenRouter model, else nothing.
+    var cloudFallbackRoute: ModelRoute? {
+        if let route = cloudRoute(), hasAccess(to: route.provider) { return route }
         let route = Self.recommendedWritingRoute
         return hasAccess(to: route.provider) ? route : nil
     }

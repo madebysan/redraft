@@ -123,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             || arguments.contains("--palette-long-preview")
             || arguments.contains("--palette-loading-preview")
             || arguments.contains("--palette-result-preview")
+            || arguments.contains("--palette-recovery-preview")
         guard isPreview else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -136,11 +137,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 )
             } else if arguments.contains("--palette-loading-preview") {
                 CommandPaletteWindowController.shared.showRunning(title: "Running custom prompt")
+            } else if arguments.contains("--palette-recovery-preview") {
+                // Replays the clipboard hand-off: the palette is hidden for the paste, the source
+                // app is re-activated, then the "copied" capsule is shown instead of a paste.
+                let palette = CommandPaletteWindowController.shared
+                palette.showRunning(title: "Fix Grammar")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    palette.prepareForReplacement()
+                    NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.TextEdit").first?.activate()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        palette.showCopied(subtitle: "This app doesn't let Companion replace the selection. The result is copied; paste it with ⌘V.")
+                    }
+                }
             } else if arguments.contains("--palette-result-preview") {
-                CommandPaletteWindowController.shared.showTextResult(
-                    text: "Dear Emily,\n\nI hope this message finds you well. I would like to schedule a meeting to discuss our marketing strategy brainstorm and align on next steps.\n\nWould Tuesday or Thursday at 3 PM work for you? If not, please send a few times that are more convenient.\n\nBest,\nSantiago",
-                    title: "Email Writer",
-                    subtitle: "Ready to paste"
+                CommandPaletteWindowController.shared.showCopied(
+                    subtitle: "Couldn't return to the original app. The result is copied; paste it with ⌘V."
                 )
             } else if arguments.contains("--palette-error-preview") {
                 CommandPaletteWindowController.shared.showError("The model didn't respond. Check your connection or choose another model, then try again.")
@@ -204,6 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openSettingsPane(named pane: String) {
         openSettings()
         settingsWindow?.selectPane(named: pane)
+    }
+
+    @objc func openModelsSettings() {
+        openSettingsPane(named: "Models")
     }
 
     @objc func openAbout() {

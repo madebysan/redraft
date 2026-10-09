@@ -8,13 +8,10 @@ final class FirstRunTests: XCTestCase {
         let credentials = CredentialStore(backend: MemoryCredentialBackend())
         let fresh = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(fresh.modelRoute(for: fresh.customPromptRouteID!)?.model, "google/gemini-3.5-flash-lite")
-        XCTAssertEqual(fresh.modelRoute(for: fresh.grammarRouteID)?.model, "deepseek/deepseek-v4.1-flash")
         fresh.customPromptRouteID = UserSettings.recommendedWritingRoute.id
-        fresh.grammarPrompt = "My preserved prompt"
         fresh.paletteDefaultView = .instruction
         let upgraded = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(upgraded.customPromptRouteID, UserSettings.recommendedWritingRoute.id)
-        XCTAssertEqual(upgraded.grammarPrompt, "My preserved prompt")
         XCTAssertEqual(upgraded.paletteDefaultView, .instruction)
     }
 
@@ -37,7 +34,6 @@ final class FirstRunTests: XCTestCase {
             let defaults = UserDefaults(suiteName: "CompanionFirstRun-\(UUID().uuidString)")!
             let settings = UserSettings(defaults: defaults, credentials: CredentialStore(backend: MemoryCredentialBackend()))
             XCTAssertTrue(settings.useWritingProvider(provider))
-            XCTAssertEqual(settings.modelRoute(for: settings.grammarRouteID)?.provider, provider)
             XCTAssertEqual(settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0)?.provider }, provider)
         }
     }
@@ -48,7 +44,6 @@ final class FirstRunTests: XCTestCase {
         XCTAssertFalse(settings.useWritingProvider(.lmStudio))
         settings.lmStudioModel = "local-model"
         XCTAssertTrue(settings.useWritingProvider(.lmStudio))
-        XCTAssertEqual(settings.modelRoute(for: settings.grammarRouteID)?.provider, .lmStudio)
         XCTAssertEqual(settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0)?.provider }, .lmStudio)
     }
 }

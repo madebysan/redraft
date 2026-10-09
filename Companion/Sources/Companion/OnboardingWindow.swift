@@ -1,7 +1,10 @@
 import AppKit
 
-// First-launch welcome screen with API key entry and permissions guide
+// First-launch welcome: pick Local or Cloud, add one key if Cloud, then grant permissions.
 final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
+    private var modeControl: NSSegmentedControl!
+    private var modeHintLabel: NSTextField!
+    private var providerLabel: NSTextField!
     private var providerPopup: NSPopUpButton!
     private var apiKeyLabel: NSTextField!
     private var apiKeyField: NSSecureTextField!
@@ -10,6 +13,8 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
     private var getStartedButton: NSButton!
     private var skipButton: NSButton!
     private var statusLabel: NSTextField!
+
+    private let cloudProviders: [UserSettings.Provider] = [.openRouter, .openAI, .claude, .deepSeek]
 
     convenience init() {
         let window = NSWindow(
@@ -29,7 +34,6 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         guard let contentView = window?.contentView else { return }
         contentView.wantsLayer = true
 
-        // App icon
         let iconView = NSImageView(frame: .zero)
         iconView.translatesAutoresizingMaskIntoConstraints = false
         if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Companion") {
@@ -39,17 +43,15 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         }
         contentView.addSubview(iconView)
 
-        // Title
         let titleLabel = NSTextField(labelWithString: "Companion")
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
         titleLabel.alignment = .center
         contentView.addSubview(titleLabel)
 
-        // Description
         let descLabel = NSTextField(wrappingLabelWithString:
-            "Transform selected text with one keystroke.\n\n" +
-            "Open the Capsule to fix grammar or type a custom instruction. Use local models through LM Studio or connect a cloud provider with your own API key on this Mac."
+            "Select text, press the shortcut, fix grammar or type an instruction.\n\n" +
+            "Choose where the model runs. You can change this any time in Settings → Models."
         )
         descLabel.translatesAutoresizingMaskIntoConstraints = false
         descLabel.font = .systemFont(ofSize: 13)
@@ -57,7 +59,65 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         descLabel.textColor = .secondaryLabelColor
         contentView.addSubview(descLabel)
 
-        // Permissions info box
+        modeControl = NSSegmentedControl(labels: UserSettings.ModelMode.allCases.map(\.title),
+            trackingMode: .selectOne, target: self, action: #selector(modeChanged))
+        modeControl.translatesAutoresizingMaskIntoConstraints = false
+        modeControl.segmentStyle = .rounded
+        for index in 0..<modeControl.segmentCount { modeControl.setWidth(0, forSegment: index) }
+        modeControl.selectedSegment = 1
+        contentView.addSubview(modeControl)
+
+        modeHintLabel = NSTextField(wrappingLabelWithString: "")
+        modeHintLabel.translatesAutoresizingMaskIntoConstraints = false
+        modeHintLabel.font = .systemFont(ofSize: 12)
+        modeHintLabel.textColor = .secondaryLabelColor
+        modeHintLabel.alignment = .center
+        contentView.addSubview(modeHintLabel)
+
+        providerLabel = NSTextField(labelWithString: "Provider")
+        providerLabel.translatesAutoresizingMaskIntoConstraints = false
+        providerLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        providerLabel.textColor = .secondaryLabelColor
+        contentView.addSubview(providerLabel)
+
+        providerPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+        providerPopup.translatesAutoresizingMaskIntoConstraints = false
+        providerPopup.target = self
+        providerPopup.action = #selector(providerChanged)
+        for provider in cloudProviders {
+            providerPopup.addItem(withTitle: provider == .openRouter
+                ? "OpenRouter · recommended models" : ModelsSettingsPane.providerTitle(provider))
+            providerPopup.lastItem?.representedObject = provider.rawValue
+        }
+        contentView.addSubview(providerPopup)
+
+        apiKeyLabel = NSTextField(labelWithString: "API key")
+        apiKeyLabel.translatesAutoresizingMaskIntoConstraints = false
+        apiKeyLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        apiKeyLabel.textColor = .secondaryLabelColor
+        contentView.addSubview(apiKeyLabel)
+
+        apiHintLabel = NSTextField(wrappingLabelWithString: "")
+        apiHintLabel.translatesAutoresizingMaskIntoConstraints = false
+        apiHintLabel.font = .systemFont(ofSize: 11)
+        apiHintLabel.textColor = .tertiaryLabelColor
+        contentView.addSubview(apiHintLabel)
+
+        apiKeyField = NSSecureTextField(frame: .zero)
+        apiKeyField.translatesAutoresizingMaskIntoConstraints = false
+        apiKeyField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        apiKeyField.target = self
+        apiKeyField.action = #selector(apiKeyChanged)
+        apiKeyField.delegate = self
+        contentView.addSubview(apiKeyField)
+
+        apiKeyLinkButton = NSButton(title: "", target: self, action: #selector(openAPIKeyPage))
+        apiKeyLinkButton.translatesAutoresizingMaskIntoConstraints = false
+        apiKeyLinkButton.isBordered = false
+        apiKeyLinkButton.contentTintColor = .linkColor
+        apiKeyLinkButton.font = .systemFont(ofSize: 12)
+        contentView.addSubview(apiKeyLinkButton)
+
         let permBox = NSBox()
         permBox.translatesAutoresizingMaskIntoConstraints = false
         permBox.boxType = .custom
@@ -69,72 +129,21 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         contentView.addSubview(permBox)
 
         let permLabel = NSTextField(wrappingLabelWithString:
-            "After setup, macOS will ask you to grant two permissions in System Settings → Privacy & Security:\n\n" +
-            "  1. Accessibility — so Companion can copy and paste text\n" +
-            "  2. Input Monitoring — so the global shortcut works everywhere\n\n" +
-            "Both are required. You may need to relaunch Companion after granting them."
+            "After setup, macOS asks for two permissions in System Settings → Privacy & Security:\n" +
+            "Accessibility, so Companion can copy and paste text, and Input Monitoring, so the shortcut works everywhere. " +
+            "You may need to relaunch Companion after granting them."
         )
         permLabel.translatesAutoresizingMaskIntoConstraints = false
         permLabel.font = .systemFont(ofSize: 11.5)
         permLabel.textColor = .secondaryLabelColor
         permBox.addSubview(permLabel)
 
-        let providerLabel = NSTextField(labelWithString: "Start with")
-        providerLabel.translatesAutoresizingMaskIntoConstraints = false
-        providerLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        providerLabel.textColor = .secondaryLabelColor
-        contentView.addSubview(providerLabel)
-
-        providerPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-        providerPopup.translatesAutoresizingMaskIntoConstraints = false
-        providerPopup.target = self
-        providerPopup.action = #selector(providerChanged)
-        addProviderItem(title: "OpenRouter · Gemini + DeepSeek", id: "openrouter")
-        addProviderItem(title: "fal gateway", id: "fal")
-        addProviderItem(title: "OpenAI", id: "openai")
-        addProviderItem(title: "Claude", id: "claude")
-        addProviderItem(title: "Local only", id: "local")
-        contentView.addSubview(providerPopup)
-
-        // API key label
-        apiKeyLabel = NSTextField(labelWithString: "API Key")
-        apiKeyLabel.translatesAutoresizingMaskIntoConstraints = false
-        apiKeyLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        apiKeyLabel.textColor = .secondaryLabelColor
-        contentView.addSubview(apiKeyLabel)
-
-        // Helper text under the label
-        apiHintLabel = NSTextField(wrappingLabelWithString: "")
-        apiHintLabel.translatesAutoresizingMaskIntoConstraints = false
-        apiHintLabel.font = .systemFont(ofSize: 11)
-        apiHintLabel.textColor = .tertiaryLabelColor
-        contentView.addSubview(apiHintLabel)
-
-        // API key field
-        apiKeyField = NSSecureTextField(frame: .zero)
-        apiKeyField.translatesAutoresizingMaskIntoConstraints = false
-        apiKeyField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-        apiKeyField.target = self
-        apiKeyField.action = #selector(apiKeyChanged)
-        apiKeyField.delegate = self
-        contentView.addSubview(apiKeyField)
-
-        // "Get an API key" link
-        apiKeyLinkButton = NSButton(title: "", target: self, action: #selector(openAPIKeyPage))
-        apiKeyLinkButton.translatesAutoresizingMaskIntoConstraints = false
-        apiKeyLinkButton.isBordered = false
-        apiKeyLinkButton.contentTintColor = .linkColor
-        apiKeyLinkButton.font = .systemFont(ofSize: 12)
-        contentView.addSubview(apiKeyLinkButton)
-
-        // Status label (for validation feedback)
         statusLabel = NSTextField(wrappingLabelWithString: "")
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.alignment = .center
         contentView.addSubview(statusLabel)
 
-        // Get Started button
         getStartedButton = NSButton(title: "Get Started", target: self, action: #selector(getStarted))
         getStartedButton.translatesAutoresizingMaskIntoConstraints = false
         getStartedButton.bezelStyle = .rounded
@@ -143,7 +152,6 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         getStartedButton.isEnabled = false
         contentView.addSubview(getStartedButton)
 
-        // Skip button — proceed without API key (local-only mode)
         skipButton = NSButton(title: "Skip for now", target: self, action: #selector(skipOnboarding))
         skipButton.translatesAutoresizingMaskIntoConstraints = false
         skipButton.bezelStyle = .accessoryBarAction
@@ -152,6 +160,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         skipButton.contentTintColor = .secondaryLabelColor
         contentView.addSubview(skipButton)
 
+        let margin: CGFloat = 60
         NSLayoutConstraint.activate([
             iconView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             iconView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 32),
@@ -166,7 +175,36 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             descLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
             descLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
 
-            permBox.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: 16),
+            modeControl.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: 18),
+            modeControl.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            modeControl.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+
+            modeHintLabel.topAnchor.constraint(equalTo: modeControl.bottomAnchor, constant: 8),
+            modeHintLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            modeHintLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+
+            providerLabel.topAnchor.constraint(equalTo: modeHintLabel.bottomAnchor, constant: 16),
+            providerLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+
+            providerPopup.topAnchor.constraint(equalTo: providerLabel.bottomAnchor, constant: 6),
+            providerPopup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            providerPopup.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+
+            apiKeyLabel.topAnchor.constraint(equalTo: providerPopup.bottomAnchor, constant: 12),
+            apiKeyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+
+            apiHintLabel.topAnchor.constraint(equalTo: apiKeyLabel.bottomAnchor, constant: 2),
+            apiHintLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            apiHintLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+
+            apiKeyField.topAnchor.constraint(equalTo: apiHintLabel.bottomAnchor, constant: 6),
+            apiKeyField.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            apiKeyField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+
+            apiKeyLinkButton.topAnchor.constraint(equalTo: apiKeyField.bottomAnchor, constant: 6),
+            apiKeyLinkButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+
+            permBox.topAnchor.constraint(equalTo: apiKeyLinkButton.bottomAnchor, constant: 16),
             permBox.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 32),
             permBox.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -32),
 
@@ -175,33 +213,12 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             permLabel.trailingAnchor.constraint(equalTo: permBox.trailingAnchor, constant: -14),
             permLabel.bottomAnchor.constraint(equalTo: permBox.bottomAnchor, constant: -12),
 
-            providerLabel.topAnchor.constraint(equalTo: permBox.bottomAnchor, constant: 16),
-            providerLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-
-            providerPopup.topAnchor.constraint(equalTo: providerLabel.bottomAnchor, constant: 6),
-            providerPopup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-            providerPopup.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -60),
-
-            apiKeyLabel.topAnchor.constraint(equalTo: providerPopup.bottomAnchor, constant: 12),
-            apiKeyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-
-            apiHintLabel.topAnchor.constraint(equalTo: apiKeyLabel.bottomAnchor, constant: 2),
-            apiHintLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-            apiHintLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -60),
-
-            apiKeyField.topAnchor.constraint(equalTo: apiHintLabel.bottomAnchor, constant: 6),
-            apiKeyField.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-            apiKeyField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -60),
-
-            apiKeyLinkButton.topAnchor.constraint(equalTo: apiKeyField.bottomAnchor, constant: 6),
-            apiKeyLinkButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-
-            statusLabel.topAnchor.constraint(equalTo: apiKeyLinkButton.bottomAnchor, constant: 8),
+            statusLabel.topAnchor.constraint(equalTo: permBox.bottomAnchor, constant: 10),
             statusLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             statusLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
             statusLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
 
-            getStartedButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 12),
+            getStartedButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
             getStartedButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
 
             skipButton.topAnchor.constraint(equalTo: getStartedButton.bottomAnchor, constant: 4),
@@ -209,12 +226,26 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             skipButton.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -20),
         ])
 
-        updateProviderSelection()
+        updateModeSelection()
     }
 
-    private func addProviderItem(title: String, id: String) {
-        providerPopup.addItem(withTitle: title)
-        providerPopup.lastItem?.representedObject = id
+    private var isLocal: Bool { modeControl.selectedSegment == 0 }
+
+    private var selectedProvider: UserSettings.Provider {
+        guard let raw = providerPopup.selectedItem?.representedObject as? String,
+              let provider = UserSettings.Provider(rawValue: raw) else { return .openRouter }
+        return provider
+    }
+
+    @objc private func modeChanged() {
+        statusLabel.stringValue = ""
+        updateModeSelection()
+    }
+
+    @objc private func providerChanged() {
+        apiKeyField.stringValue = ""
+        statusLabel.stringValue = ""
+        updateModeSelection()
     }
 
     @objc private func apiKeyChanged() {
@@ -224,112 +255,62 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
 
     func controlTextDidChange(_ notification: Notification) { apiKeyChanged() }
 
-    @objc private func providerChanged() {
-        apiKeyField.stringValue = ""
-        statusLabel.stringValue = ""
-        updateProviderSelection()
-    }
-
     @objc private func skipOnboarding() {
         UserSettings.shared.hasCompletedOnboarding = true
         self.close()
     }
 
     @objc private func openAPIKeyPage() {
-        let urlString: String
-        switch selectedProviderID {
-        case "openrouter":
-            urlString = "https://openrouter.ai/settings/keys"
-        case "openai":
-            urlString = "https://platform.openai.com/api-keys"
-        case "claude":
-            urlString = "https://console.anthropic.com/settings/keys"
-        default:
-            urlString = "https://fal.ai/dashboard/keys"
-        }
-        if let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
-        }
+        if let url = ModelsSettingsPane.keyPageURL(selectedProvider) { NSWorkspace.shared.open(url) }
     }
 
     @objc private func getStarted() {
-        let key = apiKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch selectedProviderID {
-        case "openrouter":
-            guard !key.isEmpty else { return }
-            UserSettings.shared.openRouterAPIKey = key
-        case "fal":
-            guard !key.isEmpty else { return }
-            UserSettings.shared.falAPIKey = key
-        case "openai":
-            guard !key.isEmpty else { return }
-            UserSettings.shared.openAIAPIKey = key
-        case "claude":
-            guard !key.isEmpty else { return }
-            UserSettings.shared.apiKey = key
-        default:
-            break
+        let settings = UserSettings.shared
+        if isLocal {
+            settings.modelMode = .local
+            settings.hasCompletedOnboarding = true
+            close()
+            // The local model list loads in Settings → Models; open it so the first run finishes there.
+            (NSApp.delegate as? AppDelegate)?.openSettingsPane(named: "Models")
+            return
         }
-        if let error = UserSettings.shared.credentialStorageError {
+
+        let key = apiKeyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        settings.setAPIKey(key, for: selectedProvider)
+        if let error = settings.credentialStorageError {
             statusLabel.stringValue = error
             return
         }
-        let provider = selectedProviderID == "local" ? UserSettings.Provider.lmStudio
-            : (UserSettings.Provider(rawValue: selectedProviderID) ?? .openRouter)
-        let configured = UserSettings.shared.useWritingProvider(provider)
-        UserSettings.shared.hasCompletedOnboarding = true
+        settings.useWritingProvider(selectedProvider)
+        settings.hasCompletedOnboarding = true
         statusLabel.stringValue = ""
         close()
-        if !configured { (NSApp.delegate as? AppDelegate)?.openSettingsPane(named: "Providers") }
     }
 
-    private var selectedProviderID: String {
-        providerPopup.selectedItem?.representedObject as? String ?? "openrouter"
-    }
-
-    private func updateProviderSelection() {
-        switch selectedProviderID {
-        case "openrouter":
-            apiKeyLabel.stringValue = "OpenRouter API Key"
-            apiHintLabel.stringValue = "Gemini for instructions, DeepSeek for grammar. Your key is stored in macOS Keychain."
-            apiKeyField.placeholderString = "OPENROUTER_API_KEY"
-            apiKeyField.isEnabled = true
-            apiKeyLinkButton.title = "Get an OpenRouter key"
-            apiKeyLinkButton.isHidden = false
-        case "openai":
-            apiKeyLabel.stringValue = "OpenAI API Key"
-            apiHintLabel.stringValue = "Use OpenAI directly with your own key. You can change the model later in Settings."
-            apiKeyField.placeholderString = "OPENAI_API_KEY"
-            apiKeyField.isEnabled = true
-            apiKeyLinkButton.title = "Get an OpenAI key"
-            apiKeyLinkButton.isHidden = false
-        case "claude":
-            apiKeyLabel.stringValue = "Claude API Key"
-            apiHintLabel.stringValue = "Use Claude directly with your own Anthropic key. You can change the model later in Settings."
-            apiKeyField.placeholderString = "ANTHROPIC_API_KEY"
-            apiKeyField.isEnabled = true
-            apiKeyLinkButton.title = "Get a Claude key"
-            apiKeyLinkButton.isHidden = false
-        case "local":
-            apiKeyLabel.stringValue = "API Key"
-            apiHintLabel.stringValue = "No key needed. Configure LM Studio in Providers, then choose its model in Writing."
-            apiKeyField.placeholderString = ""
-            apiKeyField.isEnabled = false
-            apiKeyLinkButton.title = ""
-            apiKeyLinkButton.isHidden = true
-        default:
-            apiKeyLabel.stringValue = "fal API Key"
-            apiHintLabel.stringValue = "Use one fal key to reach OpenRouter models from Claude, OpenAI, Gemini, DeepSeek, and others."
-            apiKeyField.placeholderString = "FAL_KEY"
-            apiKeyField.isEnabled = true
-            apiKeyLinkButton.title = "Get a fal key"
-            apiKeyLinkButton.isHidden = false
+    private func updateModeSelection() {
+        let cloudControls: [NSView] = [providerLabel, providerPopup, apiKeyLabel, apiHintLabel, apiKeyField, apiKeyLinkButton]
+        cloudControls.forEach { $0.isHidden = isLocal }
+        if isLocal {
+            modeHintLabel.stringValue = "Runs a model on this Mac with LM Studio. Install it, load a model, start its server. Nothing leaves your computer."
+        } else {
+            modeHintLabel.stringValue = "Uses your own API key. The provider bills you directly; the key stays in macOS Keychain."
+            let provider = selectedProvider
+            apiKeyLabel.stringValue = "\(ModelsSettingsPane.providerTitle(provider)) API key"
+            apiKeyField.placeholderString = ModelsSettingsPane.keyPlaceholder(provider)
+            apiKeyLinkButton.title = "Get a \(ModelsSettingsPane.providerTitle(provider)) key"
+            switch provider {
+            case .openRouter:
+                apiHintLabel.stringValue = "Starts with the tested model, Gemini Flash Lite. DeepSeek Flash is kept as the fallback for local models."
+            default:
+                apiHintLabel.stringValue = "Uses \(ModelsSettingsPane.directModelDefault(provider)). Change the model later in Settings → Models."
+            }
         }
         updateGetStartedState()
     }
 
     private func updateGetStartedState() {
-        if selectedProviderID == "local" {
+        if isLocal {
             getStartedButton.isEnabled = true
             return
         }

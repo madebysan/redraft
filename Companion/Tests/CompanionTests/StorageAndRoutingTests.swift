@@ -7,11 +7,11 @@ final class StorageAndRoutingTests: XCTestCase {
         let credentials = CredentialStore(backend: MemoryCredentialBackend())
         let settings = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(settings.paletteDefaultView, .icons)
-        let originalRoute = settings.grammarRouteID
+        let originalRoute = settings.customPromptRouteID
         settings.paletteDefaultView = .instruction
         let reopened = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(reopened.paletteDefaultView, .instruction)
-        XCTAssertEqual(reopened.grammarRouteID, originalRoute)
+        XCTAssertEqual(reopened.customPromptRouteID, originalRoute)
     }
 
     func testRequestTimingPersistsAndOldHistoryStillDecodes() async throws {
@@ -62,7 +62,7 @@ final class StorageAndRoutingTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "key"), "test-only-value")
     }
 
-    func testWritingMigrationPreservesGrammarAndExportsRetiredActionsOnce() throws {
+    func testWritingMigrationKeepsTheChosenRouteAndExportsRetiredActionsOnce() throws {
         let defaults = isolatedDefaults()
         let backend = MemoryCredentialBackend()
         let credentials = CredentialStore(backend: backend)
@@ -79,9 +79,9 @@ final class StorageAndRoutingTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WritingRecovery-\(UUID().uuidString)")
         let settings = UserSettings(defaults: defaults, credentials: credentials, recoveryDirectory: directory)
         XCTAssertNil(settings.writingMigrationError)
-        XCTAssertEqual(settings.grammarPrompt, "My edited grammar prompt")
-        XCTAssertEqual(settings.grammarRouteID, route)
-        XCTAssertEqual(defaults.string(forKey: "customPromptRouteID"), "Existing one-off prompt route")
+        XCTAssertNil(defaults.string(forKey: "grammarPrompt"), "the grammar prompt is retired, not carried over")
+        XCTAssertEqual(defaults.string(forKey: "customPromptRouteID"), "Existing one-off prompt route",
+            "an existing Capsule route wins over the legacy grammar route (\(route))")
         XCTAssertNil(defaults.data(forKey: "savedActions"))
         let recovery = try XCTUnwrap(settings.retiredActionsRecoveryURL)
         let export = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: recovery)) as? [String: Any])
@@ -90,19 +90,15 @@ final class StorageAndRoutingTests: XCTestCase {
         XCTAssertNil(export["apiKey"])
 
         settings.apiKey = "dummy-claude"
-        XCTAssertNil(settings.inexpensiveFallbackRoute)
+        XCTAssertNil(settings.cloudFallbackRoute)
         settings.openRouterAPIKey = "dummy-openrouter"
-        XCTAssertEqual(settings.inexpensiveFallbackRoute, UserSettings.recommendedWritingRoute)
-        settings.grammarPrompt = "A later prompt"
-        settings.grammarRouteID = "user-override"
+        XCTAssertEqual(settings.cloudFallbackRoute, UserSettings.recommendedWritingRoute)
+        settings.customPromptRouteID = UserSettings.recommendedWritingRoute.id
         let relaunched = UserSettings(defaults: defaults, credentials: credentials, recoveryDirectory: directory)
-        XCTAssertEqual(relaunched.grammarRouteID, "user-override")
-        XCTAssertEqual(relaunched.grammarPrompt, "A later prompt")
+        XCTAssertEqual(relaunched.customPromptRouteID, UserSettings.recommendedWritingRoute.id)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path).count, 1)
         relaunched.useRecommendedWritingModel()
-        XCTAssertEqual(relaunched.grammarRouteID, UserSettings.recommendedWritingRoute.id)
         XCTAssertEqual(relaunched.customPromptRouteID, UserSettings.recommendedInstructionRoute.id)
-        XCTAssertEqual(relaunched.grammarPrompt, "A later prompt")
     }
 
     func testRecoveryFailureDoesNotRemoveOrMigrateOldPreferences() throws {
@@ -124,8 +120,8 @@ final class StorageAndRoutingTests: XCTestCase {
         defaults.set("old humanizer customization", forKey: "humanizePrompt")
         let settings = UserSettings(defaults: defaults, credentials: CredentialStore(backend: MemoryCredentialBackend()))
         XCTAssertNil(settings.writingMigrationError)
-        XCTAssertEqual(settings.grammarPrompt, "Legacy grammar prompt")
-        XCTAssertEqual(settings.grammarRouteID, UserSettings.ModelRoute.makeID(provider: .deepSeek, model: UserSettings.defaultDeepSeekModel))
+        XCTAssertEqual(settings.customPromptRouteID, UserSettings.ModelRoute.makeID(provider: .deepSeek, model: UserSettings.defaultDeepSeekModel),
+            "the provider the old grammar action ran on becomes the single Capsule model")
         XCTAssertNil(defaults.object(forKey: "humanizePrompt"))
         XCTAssertNotNil(settings.retiredActionsRecoveryURL)
     }

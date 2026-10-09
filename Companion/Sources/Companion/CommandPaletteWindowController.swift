@@ -7,12 +7,11 @@ import Carbon.HIToolbox
 final class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate {
     static let shared = CommandPaletteWindowController()
 
-    private enum Mode { case actions, instruction, loading, success, error, recovery }
+    private enum Mode { case actions, instruction, loading, success, error }
     private let inset: CGFloat = 10
     private var mode: Mode = .actions
     private var selectedText = ""
     private var instructionDraft = ""
-    private var resultText = ""
     private var errorMessage = ""
     private var inputField: NSTextField?
     private var actionButtons: [NSButton] = []
@@ -61,7 +60,6 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     func show(selectedText: String, anchorRect: CGRect? = nil, defaultView: UserSettings.PaletteDefaultView? = nil) {
         self.selectedText = selectedText
         instructionDraft = ""
-        resultText = ""
         switch defaultView ?? UserSettings.shared.paletteDefaultView {
         case .icons: showActions()
         case .instruction: openInstruction()
@@ -107,7 +105,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         let field = NSTextField(frame: NSRect(x: 18, y: 9, width: 252, height: 22))
         field.font = .systemFont(ofSize: 14)
         field.stringValue = instructionDraft
-        field.placeholderString = selectedText.isEmpty ? "Write something…" : "What should change?"
+        field.placeholderString = selectedText.isEmpty ? "Write something…" : "Return fixes grammar · or type edits"
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -119,15 +117,19 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         field.action = #selector(runInstruction)
         field.delegate = self
         content.addSubview(field)
-        content.addSubview(button("arrow.up", label: "Run instruction (Return)",
+        content.addSubview(button("arrow.up", label: "Run (Return). Empty runs Fix Grammar",
             frame: NSRect(x: 280, y: 4, width: 32, height: 32), action: #selector(runInstruction)))
         inputField = field
         window?.makeFirstResponder(field)
     }
 
     @objc private func runInstruction() {
-        guard let instruction = inputField?.stringValue.trimmingCharacters(in: .whitespacesAndNewlines),
-              !instruction.isEmpty else { NSSound.beep(); return }
+        let instruction = inputField?.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if instruction.isEmpty {
+            // Nothing typed: with a selection, Return is the one-key Fix Grammar.
+            if selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { NSSound.beep() } else { fixGrammar() }
+            return
+        }
         instructionDraft = instruction
         TextGrabber.shared.runCustomInstruction(instruction)
     }
@@ -159,13 +161,23 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     }
 
     func showSuccess(subtitle: String = "Selection replaced") {
+        showPassiveStatus(symbol: "checkmark", subtitle: subtitle, lingerSeconds: 0.7)
+    }
+
+    // The result is on the clipboard and nothing was replaced. Stays a little longer than the
+    // success tick so the hand-off is noticed, then gets out of the way.
+    func showCopied(subtitle: String) {
+        showPassiveStatus(symbol: "doc.on.clipboard", subtitle: subtitle, lingerSeconds: 2.2)
+    }
+
+    private func showPassiveStatus(symbol: String, subtitle: String, lingerSeconds: Double) {
         mode = .success
         let content = installSurface(size: NSSize(width: 30, height: 30))
-        content.addSubview(button("checkmark", label: "\(subtitle). Dismiss",
+        content.addSubview(button(symbol, label: "\(subtitle). Dismiss",
             frame: content.bounds, action: #selector(dismiss)))
         window?.orderFrontRegardless() // Passive feedback; never take focus back from the editor.
         dismissalTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(nanoseconds: 700_000_000) }
+            do { try await Task.sleep(nanoseconds: UInt64(lingerSeconds * 1_000_000_000)) }
             catch { return }
             self?.closePalette()
         }
@@ -214,53 +226,6 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     }
 
     // Recovery is deliberately separate from the normal two-action flow.
-    func showTextResult(text: String, title: String, subtitle: String, images: [PromptImageAttachment] = []) {
-        mode = .recovery
-        resultText = text
-        let content = installSurface(size: NSSize(width: 360, height: 234))
-        let heading = NSTextField(labelWithString: title)
-        heading.font = .systemFont(ofSize: 13, weight: .semibold)
-        heading.frame = NSRect(x: 16, y: 202, width: 296, height: 18)
-        content.addSubview(heading)
-        let explanation = NSTextField(wrappingLabelWithString: subtitle)
-        explanation.font = .systemFont(ofSize: 11)
-        explanation.textColor = .secondaryLabelColor
-        explanation.frame = NSRect(x: 16, y: 156, width: 328, height: 40)
-        content.addSubview(explanation)
-        let scroll = NSScrollView(frame: NSRect(x: 16, y: 44, width: 328, height: 106))
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
-        let textView = NSTextView(frame: scroll.bounds)
-        textView.string = text
-        textView.font = .systemFont(ofSize: 13)
-        textView.isEditable = false
-        textView.isRichText = false
-        textView.drawsBackground = false
-        textView.isVerticallyResizable = true
-        textView.autoresizingMask = .width
-        textView.textContainer?.widthTracksTextView = true
-        scroll.documentView = textView
-        content.addSubview(scroll)
-        let copy = NSButton(title: "Copy rewrite", target: self, action: #selector(copyResult))
-        copy.bezelStyle = .rounded
-        copy.frame = NSRect(x: 244, y: 10, width: 104, height: 26)
-        content.addSubview(copy)
-        content.addSubview(button("xmark", label: "Close", frame: NSRect(x: 324, y: 196, width: 28, height: 28), action: #selector(dismiss)))
-        presentOverlay()
-    }
-
-    func showImageResult(text: String, images: [PromptImageAttachment], subtitle: String) {
-        showTextResult(text: text, title: "Your rewrite", subtitle: subtitle, images: images)
-    }
-
-    @objc private func copyResult() {
-        guard !TextGrabber.shared.copyPreviewResult() else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(resultText, forType: .string)
-    }
-
-    func dismissAfterPreviewAction() { closePalette() }
-
     func prepareForReplacement() {
         // End the custom instruction's field editor before returning to another app.
         window?.makeFirstResponder(nil)
@@ -402,7 +367,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
     }
 
     func handleOutsideClick(at screenPoint: NSPoint) {
-        guard mode != .loading, mode != .recovery else { return }
+        guard mode != .loading else { return }
         guard Bundle.main.bundleIdentifier?.hasSuffix(".preview") != true else { return }
         guard isPaletteVisible, let frame = window?.frame,
               !frame.insetBy(dx: -4, dy: -4).contains(screenPoint) else { return }

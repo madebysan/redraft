@@ -4,7 +4,7 @@
 
 <p>Select text. Say what you want changed. Keep writing.</p>
 
-<p><strong>Version 0.4.1</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.5.3</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
@@ -22,7 +22,7 @@ A small menu bar app for fixing grammar, rewriting, translating, and summarizing
 
 Select text and press **⌘⇧E**. Fix grammar immediately, or type an instruction: “make this warmer,” “translate to Spanish,” “summarize in three bullets.”
 
-The result replaces your selection and stays on the clipboard. Your editor's normal **⌘Z** undoes the paste. If Companion can't safely verify the selection, it leaves your text alone and offers the result for manual copying.
+The result replaces your selection and stays on the clipboard. Your editor's normal **⌘Z** undoes the paste. If Companion can't safely verify the selection, it leaves your text alone, copies the result to the clipboard, and tells you to paste it with **⌘V**.
 
 Prefer typing? Skip the icons with **Settings → General → Open with → Instruction field**. With nothing selected, write something new at the cursor.
 
@@ -34,7 +34,7 @@ Search adds cost and delay, and sends context to a search provider. Review impor
 
 ## Bring your own model
 
-Use a cloud API key or a local model through LM Studio. New installs pair Gemini Flash Lite for instructions with DeepSeek Flash for grammar through OpenRouter.
+Pick Local or Cloud in Settings → Models. Local runs a model on your Mac through LM Studio. Cloud uses one provider, one API key and one model; the recommended choice is Gemini Flash Lite through OpenRouter.
 
 Keys live in macOS Keychain. No Companion backend or analytics. Cloud usage is billed separately; results and history stay saved on your Mac.
 

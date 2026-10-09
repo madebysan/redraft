@@ -22,10 +22,12 @@ Version 0.4.0 uses a non-activating panel and does not activate Companion when p
 
 - Web search has no extra palette button. The explicit typed phrase `use web search` opts a request in. History shows a Web search marker and a secondary source-link list beneath the result in the existing scroll area. Copy Result and native replacement exclude this source list. Search status must not add a larger floating surface.
 
-- Writing replaces the old Actions pane. It contains model choices for Fix Grammar and Custom Instruction, a shared grammar prompt used by both Capsule and Services, and the inexpensive local-fallback toggle. No action picker, naming, add/remove, or reordering controls.
-- Keep the paid writing defaults in Providers: DeepSeek V4.1 Flash for grammar and Gemini 3.5 Flash Lite for instructions via OpenRouter, a secure key field, and one explicit action to reapply the pair without changing the grammar prompt. Preserve saved choices on upgrade.
+- Models is one pane with a Local or Cloud switch at the top; only the chosen branch is visible. Local: a status line with Refresh, one model menu, the image-input checkbox, the cloud fallback checkbox, and the server address behind an Advanced link. Cloud: one provider menu, one secure key field with Check key and a Get-a-key link, and one model control. For OpenRouter that control is a menu whose first entry is Recommended (the tested Gemini 3.5 Flash Lite + DeepSeek V4.1 Flash pair) plus a searchable catalog list to pick one model for both actions; for OpenAI, Claude and DeepSeek it is a text field with the default filled in. Both Capsule actions follow the single choice. No side-by-side provider grids, no enable-many model table.
+- Fix Grammar is a preset instruction on the single configured model; there is no separate grammar prompt. No action picker, naming, add/remove, or reordering controls.
+- Preserve saved keys and routes on upgrade. The mode is derived from the saved grammar route, the cloud provider from the saved instruction route. A setup the new pane cannot express (two different OpenRouter models) shows as Custom and keeps working until a new choice is made.
 - Preserve retired presets in a verified JSON recovery file before removing their preferences; expose recovery from Writing. Keep only a small compatibility reader, not an active saved-action system.
-- Distinguish direct OpenRouter from legacy fal billing. Other providers remain optional.
+- The legacy fal gateway appears as a provider only when a fal key exists. Other providers remain optional.
+- The menu bar shows one line with the current mode, provider and model; clicking it opens Models.
 - Show credential storage failures rather than silently reporting a successful save.
 - History displays the latest 500 records. Older records are retained; clearing the visible list creates a recovery archive.
 
