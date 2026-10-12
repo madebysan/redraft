@@ -33,7 +33,7 @@ Version 0.4.0 uses a non-activating panel and does not activate Companion when p
 
 ## References
 
-Primary reference: the approved native Capsule exploration. All three alternatives, including the selected design, are preserved at [glass action history](prototypes/history/glass-actions-2026-09-15/README.md). The earlier screenshot in `assets/social-preview.png` records the prior large palette and is not the current layout reference.
+Primary reference: the approved native Capsule exploration (September 15, 2026). All three alternatives, including the selected design, are kept in the project's local prototype history. The earlier screenshot in `assets/social-preview.png` records the prior large palette and is not the current layout reference.
 
 ## Verification and development
 
