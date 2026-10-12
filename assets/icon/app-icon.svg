@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<rect width="1024" height="1024" rx="228" fill="#FF6B3D"/>
+<g id="glyph" transform="translate(72.2 119.6) scale(0.8025)">
+<path d="M276 392 H520" stroke="#111" stroke-width="44.9" stroke-linecap="round" fill="none"/>
+<rect x="246" y="470" width="400" height="120" rx="60" fill="#111"/>
+<path d="M276 668 H470" stroke="#111" stroke-width="44.9" stroke-linecap="round" fill="none"/>
+<path d="M0 -100 C12 -40 30 -22 90 -10 C30 2 12 20 0 80 C-12 20 -30 2 -90 -10 C-30 -22 -12 -40 0 -100 Z" transform="translate(760 380) scale(1.0)" fill="none" stroke="#111" stroke-width="44.9" stroke-linejoin="round"/>
+<path d="M0 -100 C12 -40 30 -22 90 -10 C30 2 12 20 0 80 C-12 20 -30 2 -90 -10 C-30 -22 -12 -40 0 -100 Z" transform="translate(724 650) scale(0.6)" fill="none" stroke="#111" stroke-width="74.7" stroke-linejoin="round"/>
+</g>
+</svg>
