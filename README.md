@@ -38,6 +38,13 @@ Pick Local or Cloud in Settings → Models. Local runs a model on your Mac throu
 
 Keys live in macOS Keychain. No Companion backend or analytics. Cloud usage is billed separately; results and history stay saved on your Mac.
 
+## Permissions, plainly
+
+macOS asks you to allow two things. Here is what Companion does with each:
+
+- **Accessibility** lets Companion read the text you selected, open its panel next to it, and press **⌘C** and **⌘V** for you to copy the selection and paste the result. It does this only when you call Companion. If you cancel, your previous clipboard comes back.
+- **Input Monitoring** is requested so the shortcut works in every app. Companion doesn't record or store what you type.
+
 ## Get started
 
 Download the signed, notarized DMG, drag Companion into Applications, configure a provider, and grant Accessibility and Input Monitoring.
