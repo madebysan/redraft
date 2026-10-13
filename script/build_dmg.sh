@@ -48,6 +48,7 @@ mkdir -p "$STAGING_DIR"
 ditto "$APP_BUNDLE" "$STAGING_DIR/Companion.app"
 ln -s /Applications "$STAGING_DIR/Applications"
 cp "$ROOT_DIR/LICENSE" "$STAGING_DIR/LICENSE"
+cp "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$STAGING_DIR/"
 cp "$ROOT_DIR/resources/DMG-README.txt" "$STAGING_DIR/README.txt"
 cp "$ROOT_DIR/Companion/Sources/Companion/Resources/AppIcon.icns" "$STAGING_DIR/.VolumeIcon.icns"
 if xcrun --find SetFile >/dev/null 2>&1; then

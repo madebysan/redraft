@@ -51,6 +51,7 @@ cp "$INFO_PLIST" "$CONTENTS_DIR/Info.plist"
 if [[ -f "$ICON_FILE" ]]; then
   cp "$ICON_FILE" "$RESOURCES_DIR/AppIcon.icns"
 fi
+cp "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$RESOURCES_DIR/"
 # Embed Sparkle, the in-app updater. ditto keeps the framework's symlinks intact.
 mkdir -p "$CONTENTS_DIR/Frameworks"
 /usr/bin/ditto "$(dirname "$BUILD_BINARY")/Sparkle.framework" "$CONTENTS_DIR/Frameworks/Sparkle.framework"

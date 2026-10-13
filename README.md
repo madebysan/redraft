@@ -51,6 +51,6 @@ Download the signed, notarized DMG, drag Companion into Applications, configure 
 
 **Upgrading?** Quit the old app before replacing it. Your settings and keys are preserved; permissions may need re-granting.
 
-[Release notes](CHANGELOG.md) · [Report an issue](https://github.com/madebysan/companion/issues) · [MIT license](LICENSE)
+[Release notes](CHANGELOG.md) · [Report an issue](https://github.com/madebysan/companion/issues) · [MIT license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 Made by [santiagoalonso.com](https://santiagoalonso.com)
