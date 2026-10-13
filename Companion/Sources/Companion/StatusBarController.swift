@@ -68,6 +68,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         aboutItem.target = appDelegate
         menu.addItem(aboutItem)
+        menu.addItem(Updates.menuItem())
 
         menu.addItem(NSMenuItem.separator())
 

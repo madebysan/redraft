@@ -31,6 +31,8 @@ if [[ "$MODE" == "--preview" ]]; then
   PREVIEW_BINARY="$(swift build --package-path "$PACKAGE_DIR" --show-bin-path)/$PRODUCT_NAME"
   mkdir -p "$PREVIEW_BUNDLE/Contents/MacOS" "$PREVIEW_BUNDLE/Contents/Resources"
   cp "$PREVIEW_BINARY" "$PREVIEW_BUNDLE/Contents/MacOS/$APP_NAME"
+  mkdir -p "$PREVIEW_BUNDLE/Contents/Frameworks"
+  /usr/bin/ditto "$(dirname "$PREVIEW_BINARY")/Sparkle.framework" "$PREVIEW_BUNDLE/Contents/Frameworks/Sparkle.framework"
   cp "$INFO_PLIST" "$PREVIEW_BUNDLE/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.santiagoalonso.companion.preview' "$PREVIEW_BUNDLE/Contents/Info.plist"
   codesign --force --sign - "$PREVIEW_BUNDLE"
@@ -49,10 +51,20 @@ cp "$INFO_PLIST" "$CONTENTS_DIR/Info.plist"
 if [[ -f "$ICON_FILE" ]]; then
   cp "$ICON_FILE" "$RESOURCES_DIR/AppIcon.icns"
 fi
+# Embed Sparkle, the in-app updater. ditto keeps the framework's symlinks intact.
+mkdir -p "$CONTENTS_DIR/Frameworks"
+/usr/bin/ditto "$(dirname "$BUILD_BINARY")/Sparkle.framework" "$CONTENTS_DIR/Frameworks/Sparkle.framework"
 
 sign_app() {
   if security find-identity -v -p codesigning | grep -Fq "$SIGN_IDENTITY"; then
-    codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
+    # Sparkle's nested code inside-out first, then the app, without --deep.
+    local fw="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+    codesign -f -o runtime --timestamp -s "$SIGN_IDENTITY" "$fw/Versions/B/XPCServices/Installer.xpc"
+    codesign -f -o runtime --timestamp --preserve-metadata=entitlements -s "$SIGN_IDENTITY" "$fw/Versions/B/XPCServices/Downloader.xpc"
+    codesign -f -o runtime --timestamp -s "$SIGN_IDENTITY" "$fw/Versions/B/Autoupdate"
+    codesign -f -o runtime --timestamp -s "$SIGN_IDENTITY" "$fw/Versions/B/Updater.app"
+    codesign -f -o runtime --timestamp -s "$SIGN_IDENTITY" "$fw"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
   else
     echo "Developer ID signing identity unavailable; installed app was not changed." >&2
     exit 1

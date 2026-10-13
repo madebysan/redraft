@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let isPreviewLaunch = isPreviewMode()
         if isPreviewLaunch { NSApp.setActivationPolicy(.regular) }
         installMainMenu()
+        if !isPreviewLaunch { Updates.start() }
 
         // Check accessibility permission
         if !isPreviewLaunch {
@@ -78,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(openAbout),
             keyEquivalent: ""
         )
+        appMenu.addItem(Updates.menuItem())
         appMenu.addItem(.separator())
         appMenu.addItem(
             withTitle: "Quit Companion",
