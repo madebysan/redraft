@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start periodic permission monitoring
         if !isPreviewLaunch {
-            wasPermissionsOK = AXIsProcessTrusted() && SettingsWindow.checkInputMonitoring()
+            wasPermissionsOK = AXIsProcessTrusted()
             startPermissionMonitoring()
         }
 
@@ -343,8 +343,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startPermissionMonitoring() {
-        // Check every 120 seconds instead of 10 — permissions rarely change,
-        // and each check creates/destroys a CGEvent tap
+        // Permissions rarely change, so check every 120 seconds
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             self?.recheckPermissions()
         }
@@ -363,15 +362,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func recheckPermissions() {
-        let accessOK = AXIsProcessTrusted()
-        let inputOK = SettingsWindow.checkInputMonitoring()
-        let allOK = accessOK && inputOK
+        let allOK = AXIsProcessTrusted()
 
         if wasPermissionsOK && !allOK {
             DispatchQueue.main.async {
                 self.statusBarController?.showPermissionWarning(true)
             }
-            showPermissionLostNotification(accessibility: !accessOK, inputMonitoring: !inputOK)
+            showPermissionLostNotification()
         } else if !wasPermissionsOK && allOK {
             DispatchQueue.main.async {
                 self.statusBarController?.showPermissionWarning(false)
@@ -381,14 +378,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wasPermissionsOK = allOK
     }
 
-    private func showPermissionLostNotification(accessibility: Bool, inputMonitoring: Bool) {
-        var missing: [String] = []
-        if accessibility { missing.append("Accessibility") }
-        if inputMonitoring { missing.append("Input Monitoring") }
-
+    private func showPermissionLostNotification() {
         let content = UNMutableNotificationContent()
         content.title = "Companion shortcut stopped working"
-        content.body = "Missing permission: \(missing.joined(separator: " and ")). Open Companion settings or go to System Settings → Privacy & Security to fix."
+        content.body = "Missing permission: Accessibility. Open Companion settings or go to System Settings → Privacy & Security to fix."
         content.sound = .default
 
         let request = UNNotificationRequest(

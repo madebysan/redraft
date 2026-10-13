@@ -2,6 +2,12 @@
 
 All notable changes to Companion are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Companion no longer asks for Input Monitoring. The shortcut uses the system's hotkey service, which works in every app without it; only Companion's own permission check needed it, and that check was what made macOS ask. Accessibility is the one permission left. An existing Input Monitoring grant can be removed in System Settings → Privacy & Security.
+
 ## [0.5.3] - 2026-10-09
 
 ### Changed

@@ -76,7 +76,7 @@ replace_installed_app() {
   if [[ -d "$INSTALLED_APP_BUNDLE" ]]; then
     BACKUP_DIR="$(mktemp -d "$ROOT_DIR/work/installed-backup.XXXXXX")"
     /usr/bin/ditto "$INSTALLED_APP_BUNDLE" "$BACKUP_DIR/$APP_NAME.app"
-    echo "Updating in place; macOS may ask you to re-grant Accessibility or Input Monitoring."
+    echo "Updating in place; macOS may ask you to re-grant Accessibility."
     echo "Previous app preserved at $BACKUP_DIR/$APP_NAME.app"
   fi
   /usr/bin/ditto "$APP_BUNDLE" "$INSTALLED_APP_BUNDLE"

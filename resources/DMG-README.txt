@@ -2,7 +2,7 @@ Companion
 
 INSTALL
 Drag Companion.app to Applications, then launch it from Applications.
-Grant Accessibility and Input Monitoring if macOS asks.
+Grant Accessibility if macOS asks.
 On a new Mac, enter your own provider API key in setup. Keys are device-local
 and are never included in this disk image.
 
@@ -39,7 +39,7 @@ To use the recommended pair, choose Settings > Providers > Use recommended model
 If an old setup points to an unconfigured provider, reselect your provider
 and model in Settings. Installing an update does not supply missing API keys.
 If the shortcut or text replacement does not work, check System Settings >
-Privacy & Security > Accessibility and Input Monitoring. If necessary, remove
+Privacy & Security > Accessibility. If necessary, remove
 the stale Companion entry, add the app from Applications, and relaunch it.
 
 Your grammar configuration is preserved. Retired action presets are exported

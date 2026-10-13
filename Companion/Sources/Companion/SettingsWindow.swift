@@ -349,7 +349,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 section.addArrangedSubview(makeSettingsRow(label: "Shortcut", control: shortcutControl))
 
                 section.addArrangedSubview(makeHelpLabel(
-                    "If the shortcut does not trigger, another app may already own it. Record a different combination and make sure Input Monitoring is granted."
+                    "If the shortcut does not trigger, another app may already own it. Record a different combination."
                 ))
             }
         }
@@ -560,13 +560,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             detail: "Lets Companion copy selected text and paste the replacement.",
             action: #selector(openAccessibilitySettings)
         ))
-
-        permissionsStack.addArrangedSubview(makePermissionRow(
-            granted: Self.checkInputMonitoring(),
-            name: "Input Monitoring",
-            detail: "Lets the global shortcut work while another app is focused.",
-            action: #selector(openInputMonitoringSettings)
-        ))
     }
 
     private func makePermissionRow(granted: Bool, name: String, detail: String, action: Selector) -> NSView {
@@ -619,31 +612,8 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         return row
     }
 
-    static func checkInputMonitoring() -> Bool {
-        // Try to create a passive event tap. It returns nil when Input Monitoring is not granted.
-        let tap = CGEvent.tapCreate(
-            tap: .cghidEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly,
-            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
-            callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
-            userInfo: nil
-        )
-        let granted = tap != nil
-        if let tap {
-            CFMachPortInvalidate(tap)
-        }
-        return granted
-    }
-
     @objc private func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
-    }
-
-    @objc private func openInputMonitoringSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }

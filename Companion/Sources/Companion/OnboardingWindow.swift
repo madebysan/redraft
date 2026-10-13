@@ -129,9 +129,9 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         contentView.addSubview(permBox)
 
         let permLabel = NSTextField(wrappingLabelWithString:
-            "After setup, macOS asks for two permissions in System Settings → Privacy & Security:\n" +
-            "Accessibility, so Companion can copy and paste text, and Input Monitoring, so the shortcut works everywhere. " +
-            "You may need to relaunch Companion after granting them."
+            "After setup, macOS asks for one permission in System Settings → Privacy & Security:\n" +
+            "Accessibility, so Companion can copy and paste text. " +
+            "You may need to relaunch Companion after granting it."
         )
         permLabel.translatesAutoresizingMaskIntoConstraints = false
         permLabel.font = .systemFont(ofSize: 11.5)

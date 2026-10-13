@@ -32,7 +32,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // Status indicator
-        let allPermissionsOK = AXIsProcessTrusted() && SettingsWindow.checkInputMonitoring()
+        let allPermissionsOK = AXIsProcessTrusted()
         let statusTitle = allPermissionsOK ? "Status: Ready" : "Status: Missing Permissions"
         statusMenuItem = NSMenuItem(title: statusTitle, action: allPermissionsOK ? nil : #selector(AppDelegate.openSettings), keyEquivalent: "")
         statusMenuItem?.target = allPermissionsOK ? nil : appDelegate
@@ -99,10 +99,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     // after the user grants permissions in System Settings.
     nonisolated func menuWillOpen(_ menu: NSMenu) {
         Task { @MainActor in
-            let accessOK = AXIsProcessTrusted()
-            let inputOK = SettingsWindow.checkInputMonitoring()
-            let allOK = accessOK && inputOK
-            self.showPermissionWarning(!allOK)
+            self.showPermissionWarning(!AXIsProcessTrusted())
             self.setupMenuItem?.title = "Using: \(UserSettings.shared.setupSummary)"
         }
     }
