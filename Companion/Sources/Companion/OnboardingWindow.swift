@@ -23,7 +23,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Welcome to Companion"
+        window.title = "Welcome to Redraft"
         window.center()
         window.isReleasedWhenClosed = false
         self.init(window: window)
@@ -36,14 +36,14 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
 
         let iconView = NSImageView(frame: .zero)
         iconView.translatesAutoresizingMaskIntoConstraints = false
-        if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Companion") {
+        if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Redraft") {
             let config = NSImage.SymbolConfiguration(pointSize: 48, weight: .light)
             iconView.image = image.withSymbolConfiguration(config)
             iconView.contentTintColor = .controlAccentColor
         }
         contentView.addSubview(iconView)
 
-        let titleLabel = NSTextField(labelWithString: "Companion")
+        let titleLabel = NSTextField(labelWithString: "Redraft")
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
         titleLabel.alignment = .center
@@ -130,8 +130,8 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
 
         let permLabel = NSTextField(wrappingLabelWithString:
             "After setup, macOS asks for one permission in System Settings → Privacy & Security:\n" +
-            "Accessibility, so Companion can copy and paste text. " +
-            "You may need to relaunch Companion after granting it."
+            "Accessibility, so Redraft can copy and paste text. " +
+            "You may need to relaunch Redraft after granting it."
         )
         permLabel.translatesAutoresizingMaskIntoConstraints = false
         permLabel.font = .systemFont(ofSize: 11.5)

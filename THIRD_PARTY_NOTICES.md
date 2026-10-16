@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Companion includes the open-source components below. Versions match `Package.resolved`. The full license text of each one follows, copied from the pinned release.
+Redraft includes the open-source components below. Versions match `Package.resolved`. The full license text of each one follows, copied from the pinned release.
 
 | Component | Version | License | Used for |
 | --- | --- | --- | --- |

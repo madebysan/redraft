@@ -193,7 +193,7 @@ final class RewriteDispatcher {
 
     private func notifyFallback(route: UserSettings.ModelRoute, reason: String) {
         let content = UNMutableNotificationContent()
-        content.title = "Companion"
+        content.title = "Redraft"
         content.body = "Local model failed, used \(route.displayModel) instead. \(reason)"
         content.sound = nil
 

@@ -42,7 +42,7 @@ final class TextGrabber {
         }
         guard AXIsProcessTrusted() else {
             CommandPaletteWindowController.shared.showSetupRequired(
-                "Enable Companion in System Settings → Privacy & Security → Accessibility on this Mac, then reopen Companion. This permission is needed to read and replace selected text."
+                "Enable Redraft in System Settings → Privacy & Security → Accessibility on this Mac, then reopen Redraft. This permission is needed to read and replace selected text."
             )
             return
         }
@@ -94,7 +94,7 @@ final class TextGrabber {
             if selectedText.isEmpty, (refreshedSnapshot?.fingerprint.range?.length ?? selectionSnapshot?.fingerprint.range?.length ?? 0) > 0 {
                 self.restoreClipboard(pasteboard, items: savedItems)
                 self.isProcessing = false
-                self.showErrorNotification("Couldn't read the selected text. Select it again and reopen Companion.")
+                self.showErrorNotification("Couldn't read the selected text. Select it again and reopen Redraft.")
                 return
             }
 
@@ -215,7 +215,7 @@ final class TextGrabber {
         guard let session = activeSession else {
             isProcessing = false
             CommandPaletteWindowController.shared.showSetupRequired(
-                "The selection session ended. Select your text and reopen Companion to try again."
+                "The selection session ended. Select your text and reopen Redraft to try again."
             )
             return
         }
@@ -323,7 +323,7 @@ final class TextGrabber {
             }
             guard AXIsProcessTrusted(),
                   session.selectionSnapshot?.stillMatches(processID: sourceApp.processIdentifier, selectedText: session.selectedText) == true else {
-                self.handOffToClipboard(rewritten, reason: "This app doesn't let Companion replace the selection. The result is copied; paste it with ⌘V.")
+                self.handOffToClipboard(rewritten, reason: "This app doesn't let Redraft replace the selection. The result is copied; paste it with ⌘V.")
                 return
             }
             pasteboard.clearContents()
@@ -363,7 +363,7 @@ final class TextGrabber {
         onStatusChange?(.done)
         CommandPaletteWindowController.shared.showCopied(subtitle: reason)
         let content = UNMutableNotificationContent()
-        content.title = "Companion"
+        content.title = "Redraft"
         content.body = reason
         content.sound = nil
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
@@ -417,8 +417,8 @@ final class TextGrabber {
     // Show a macOS notification for errors
     private func showErrorNotification(_ message: String) {
         let content = UNMutableNotificationContent()
-        content.title = "Companion"
-        content.body = "Companion failed: \(message)"
+        content.title = "Redraft"
+        content.body = "Redraft failed: \(message)"
         content.sound = .default
 
         let request = UNNotificationRequest(

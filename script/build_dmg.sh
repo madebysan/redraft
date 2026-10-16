@@ -7,7 +7,7 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO
 SIGN_IDENTITY="Developer ID Application: Santiago Alonso Alexandre (QAMM2A6WRQ)"
 NOTARY_PROFILE="${NOTARY_PROFILE:-notarytool}"
 RELEASE_DIR="$ROOT_DIR/Companion/.release"
-DMG_NAME="Companion-$VERSION.dmg"
+DMG_NAME="Redraft-$VERSION.dmg"
 REPO_DMG="$RELEASE_DIR/$DMG_NAME"
 DESKTOP_DMG="$HOME/Desktop/$DMG_NAME"
 SHOULD_NOTARIZE=false
@@ -27,13 +27,13 @@ fi
 
 mkdir -p "$RELEASE_DIR"
 BUILD_DIR="$(mktemp -d "$RELEASE_DIR/package-$VERSION.XXXXXX")"
-APP_BUNDLE="$BUILD_DIR/Companion.app"
+APP_BUNDLE="$BUILD_DIR/Redraft.app"
 STAGING_DIR="$BUILD_DIR/dmg-contents"
-APP_ZIP="$BUILD_DIR/Companion-$VERSION-notary.zip"
+APP_ZIP="$BUILD_DIR/Redraft-$VERSION-notary.zip"
 
 # Build/sign without stopping or replacing the installed app.
 "$ROOT_DIR/script/build_and_run.sh" --build-only
-ditto "$ROOT_DIR/dist/Companion.app" "$APP_BUNDLE"
+ditto "$ROOT_DIR/dist/Redraft.app" "$APP_BUNDLE"
 codesign --verify --deep --strict "$APP_BUNDLE"
 
 if [[ "$SHOULD_NOTARIZE" == true ]]; then
@@ -45,7 +45,7 @@ if [[ "$SHOULD_NOTARIZE" == true ]]; then
 fi
 
 mkdir -p "$STAGING_DIR"
-ditto "$APP_BUNDLE" "$STAGING_DIR/Companion.app"
+ditto "$APP_BUNDLE" "$STAGING_DIR/Redraft.app"
 ln -s /Applications "$STAGING_DIR/Applications"
 cp "$ROOT_DIR/LICENSE" "$STAGING_DIR/LICENSE"
 cp "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$STAGING_DIR/"
@@ -55,7 +55,7 @@ if xcrun --find SetFile >/dev/null 2>&1; then
   xcrun SetFile -a C "$STAGING_DIR"
 fi
 
-hdiutil create -volname "Companion $VERSION" -srcfolder "$STAGING_DIR" -format UDZO "$REPO_DMG"
+hdiutil create -volname "Redraft $VERSION" -srcfolder "$STAGING_DIR" -format UDZO "$REPO_DMG"
 codesign --force --timestamp --sign "$SIGN_IDENTITY" "$REPO_DMG"
 if [[ "$SHOULD_NOTARIZE" == true ]]; then
   xcrun notarytool submit "$REPO_DMG" --keychain-profile "$NOTARY_PROFILE" --wait

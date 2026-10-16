@@ -45,7 +45,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Companion Settings"
+        window.title = "Redraft Settings"
         window.minSize = settingsMinimumWindowSize
         window.setFrameAutosaveName("CompanionSettingsWindow")
         window.center()
@@ -203,11 +203,11 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             }
             addSection(
                 "Behavior",
-                help: "Control how Companion runs in the background.",
+                help: "Control how Redraft runs in the background.",
                 to: stack
             ) { section in
                 launchAtLoginCheckbox = NSButton(
-                    checkboxWithTitle: "Launch Companion at login",
+                    checkboxWithTitle: "Launch Redraft at login",
                     target: self,
                     action: #selector(toggleLaunchAtLogin)
                 )
@@ -223,7 +223,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 section.addArrangedSubview(makeHelpLabel("Open directly into an instruction, or show the two action icons first."))
 
                 section.addArrangedSubview(makeHelpLabel(
-                    "Companion stays in the menu bar and opens the command palette with your global shortcut."
+                    "Redraft stays in the menu bar and opens the command palette with your global shortcut."
                 ))
             }
 
@@ -235,13 +235,13 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 section.addArrangedSubview(makeInfoRow(label: "Version", value: appVersionString()))
                 section.addArrangedSubview(makeInfoRow(label: "Bundle ID", value: Bundle.main.bundleIdentifier ?? "Unknown"))
                 section.addArrangedSubview(makeHelpLabel(
-                    "About, quit, and status commands are available from the Companion menu bar icon."
+                    "About, quit, and status commands are available from the Redraft menu bar icon."
                 ))
             }
 
             addSection(
                 "Credits",
-                help: "Companion is made by Santiago Alonso.",
+                help: "Redraft is made by Santiago Alonso.",
                 to: stack
             ) { section in
                 section.addArrangedSubview(makeInfoRow(label: "Made by", value: "Santiago Alonso"))
@@ -359,7 +359,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         makePane { stack in
             addSection(
                 "Required Permissions",
-                help: "Companion needs both permissions before it can work reliably across apps.",
+                help: "Redraft needs both permissions before it can work reliably across apps.",
                 to: stack
             ) { section in
                 permissionsStack = NSStackView()
@@ -372,7 +372,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
                 section.addArrangedSubview(makeSmallButton("Recheck Permissions", action: #selector(recheckPermissions)))
                 section.addArrangedSubview(makeHelpLabel(
-                    "After an app update, macOS may keep stale permission entries. If Companion stops working, remove and re-add it in each privacy list, then relaunch."
+                    "After an app update, macOS may keep stale permission entries. If Redraft stops working, remove and re-add it in each privacy list, then relaunch."
                 ))
             }
         }
@@ -547,7 +547,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         permissionsStack.addArrangedSubview(makePermissionRow(
             granted: AXIsProcessTrusted(),
             name: "Accessibility",
-            detail: "Lets Companion copy selected text and paste the replacement.",
+            detail: "Lets Redraft copy selected text and paste the replacement.",
             action: #selector(openAccessibilitySettings)
         ))
     }
@@ -627,7 +627,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     @objc private func clearHistory() {
         let alert = NSAlert()
         alert.messageText = "Clear generated text history?"
-        alert.informativeText = "This clears the visible history. A recovery archive stays in Companion's Application Support folder."
+        alert.informativeText = "This clears the visible history. A recovery archive stays in Application Support › Companion (the folder keeps the app's original name)."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Clear History")
         alert.addButton(withTitle: "Cancel")

@@ -1,7 +1,7 @@
-Companion
+Redraft
 
 INSTALL
-Drag Companion.app to Applications, then launch it from Applications.
+Drag Redraft.app to Applications, then launch it from Applications.
 Grant Accessibility if macOS asks.
 On a new Mac, enter your own provider API key in setup. Keys are device-local
 and are never included in this disk image.
@@ -17,7 +17,7 @@ The rewrite replaces the selection and stays on the clipboard.
 Use your editor's normal Command-Z to undo a paste.
 
 SETTINGS
-Open Settings from Companion's menu bar icon.
+Open Settings from Redraft's menu bar icon.
 Writing contains the two model choices and the grammar prompt.
 Providers contains Keychain-backed API keys and optional local models.
 New installs use Gemini 3.5 Flash Lite for instructions and DeepSeek V4.1 Flash
@@ -25,10 +25,10 @@ for grammar through OpenRouter. Upgrades preserve saved model choices.
 You need your own provider account/key; API usage is billed by the provider.
 
 UPGRADING
-1. Quit the old Companion from its menu bar icon before replacing it.
-2. Drag this Companion.app into Applications and choose Replace.
-3. Launch /Applications/Companion.app, not a copy inside this disk image.
-4. Eject the disk image. About Companion should show version 0.4.0.
+1. Quit the old Redraft from its menu bar icon before replacing it.
+2. Drag this Redraft.app into Applications and choose Replace.
+3. Launch /Applications/Redraft.app, not a copy inside this disk image.
+4. Eject the disk image. About Redraft should show version 0.4.0.
 
 Do not keep an older copy running or launch multiple copies from Downloads,
 mounted disk images, or other folders. This disk image does not automatically
@@ -40,15 +40,15 @@ If an old setup points to an unconfigured provider, reselect your provider
 and model in Settings. Installing an update does not supply missing API keys.
 If the shortcut or text replacement does not work, check System Settings >
 Privacy & Security > Accessibility. If necessary, remove
-the stale Companion entry, add the app from Applications, and relaunch it.
+the stale Redraft entry, add the app from Applications, and relaunch it.
 
 Your grammar configuration is preserved. Retired action presets are exported
 to a recovery file before removal. Writing can reveal the recovery file.
-If a selection cannot be verified or output is incomplete, Companion keeps
+If a selection cannot be verified or output is incomplete, Redraft keeps
 the generated text available for recovery without replacing the original.
 
 Native Liquid Glass requires macOS 26 or later. Earlier supported macOS
-versions use native material. Companion supports macOS 13+ on Intel and
+versions use native material. Redraft supports macOS 13+ on Intel and
 Apple Silicon.
 
 Made by santiagoalonso.com

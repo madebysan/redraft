@@ -1,15 +1,15 @@
-# Companion interface
+# Redraft interface
 
-Companion is a frequent, keyboard-first writing utility. The command palette should appear immediately, accept an action, and return the user to their text.
+Redraft is a frequent, keyboard-first writing utility. The command palette should appear immediately, accept an action, and return the user to their text.
 
 ## Palette
 
-Version 0.4.0 uses a non-activating panel and does not activate Companion when presenting it. General → Open with selects action icons or a directly focused instruction field (existing default remains icons). Hover tracking also works while the source app is active. This behavior has automated coverage and was included in the locally installed build tested by san; cross-machine and older-OS interaction still require device testing.
+Version 0.4.0 uses a non-activating panel and does not activate Redraft when presenting it. General → Open with selects action icons or a directly focused instruction field (existing default remains icons). Hover tracking also works while the source app is active. This behavior has automated coverage and was included in the locally installed build tested by san; cross-machine and older-OS interaction still require device testing.
 
 - Selected direction: **Capsule**, approved by san on September 15, 2026. The floating AppKit `NSPanel` contains one 80 × 36-point glass pill with two 36-point action targets: Fix Grammar and Custom Instruction.
 - Use native `NSGlassEffectView` clear glass on macOS 26+, grouped in `NSGlassEffectContainerView`. Follow system appearance. On macOS 13–25 use a native popover material fallback. No painted white background or forced Light Aqua.
 - Use SF Symbols at 16 points for actions and 13 points for feedback, with quiet hover feedback, labels for accessibility, and precise tooltips.
-- Icon buttons have no blue focus ring. Logical keyboard focus and shortcuts remain active. The instruction field releases focus before native replacement; success feedback must not reactivate Companion.
+- Icon buttons have no blue focus ring. Logical keyboard focus and shortcuts remain active. The instruction field releases focus before native replacement; success feedback must not reactivate Redraft.
 - Return or Command-1 runs Fix Grammar. Tab, the pencil, or Command-2 opens the instruction field. Left/Right moves between the two actions. Command-comma opens Settings. Provider choices stay in Settings and the menu bar.
 - The instruction field expands only on request to 320 × 40 points. Return submits; Escape returns to the two actions while retaining the draft, then Escape closes the palette.
 - Loading, completion, and collapsed error feedback use one 30-point glass circle. Click loading or press Escape to cancel. A checkmark disappears after 700 ms. Error details and Settings are available on demand from the error icon.

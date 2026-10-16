@@ -39,7 +39,7 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
             backing: .buffered,
             defer: false
         )
-        panel.title = "Companion"
+        panel.title = "Redraft"
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false // The system glass supplies its own depth.

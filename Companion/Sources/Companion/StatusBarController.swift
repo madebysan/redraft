@@ -62,7 +62,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(settingsItem)
 
         let aboutItem = NSMenuItem(
-            title: "About Companion",
+            title: "About Redraft",
             action: #selector(AppDelegate.openAbout),
             keyEquivalent: ""
         )
@@ -73,7 +73,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(NSMenuItem(
-            title: "Quit Companion",
+            title: "Quit Redraft",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         ))
@@ -131,7 +131,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func setDefaultIcon(_ button: NSStatusBarButton) {
-        if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Companion") {
+        if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Redraft") {
             image.isTemplate = true
             button.image = image
         } else {
@@ -140,7 +140,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func setWarningIcon(_ button: NSStatusBarButton) {
-        if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: "Companion — missing permissions") {
+        if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: "Redraft — missing permissions") {
             image.isTemplate = true
             button.image = image
         }

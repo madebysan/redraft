@@ -72,17 +72,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
 
-        let appMenu = NSMenu(title: "Companion")
+        let appMenu = NSMenu(title: "Redraft")
         appMenuItem.submenu = appMenu
         appMenu.addItem(
-            withTitle: "About Companion",
+            withTitle: "About Redraft",
             action: #selector(openAbout),
             keyEquivalent: ""
         )
         appMenu.addItem(Updates.menuItem())
         appMenu.addItem(.separator())
         appMenu.addItem(
-            withTitle: "Quit Companion",
+            withTitle: "Quit Redraft",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -148,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     palette.prepareForReplacement()
                     NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.TextEdit").first?.activate()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        palette.showCopied(subtitle: "This app doesn't let Companion replace the selection. The result is copied; paste it with ⌘V.")
+                        palette.showCopied(subtitle: "This app doesn't let Redraft replace the selection. The result is copied; paste it with ⌘V.")
                     }
                 }
             } else if arguments.contains("--palette-result-preview") {
@@ -231,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            aboutWindow?.title = "About Companion"
+            aboutWindow?.title = "About Redraft"
             aboutWindow?.center()
             aboutWindow?.isReleasedWhenClosed = false
 
@@ -240,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Icon
             let iconView = NSImageView(frame: .zero)
             iconView.translatesAutoresizingMaskIntoConstraints = false
-            if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Companion") {
+            if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Redraft") {
                 let config = NSImage.SymbolConfiguration(pointSize: 36, weight: .light)
                 iconView.image = image.withSymbolConfiguration(config)
                 iconView.contentTintColor = .controlAccentColor
@@ -248,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             contentView.addSubview(iconView)
 
             // Title
-            let titleLabel = NSTextField(labelWithString: "Companion")
+            let titleLabel = NSTextField(labelWithString: "Redraft")
             titleLabel.translatesAutoresizingMaskIntoConstraints = false
             titleLabel.font = .systemFont(ofSize: 18, weight: .bold)
             titleLabel.alignment = .center
@@ -380,8 +380,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPermissionLostNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "Companion shortcut stopped working"
-        content.body = "Missing permission: Accessibility. Open Companion settings or go to System Settings → Privacy & Security to fix."
+        content.title = "Redraft shortcut stopped working"
+        content.body = "Missing permission: Accessibility. Open Redraft settings or go to System Settings → Privacy & Security to fix."
         content.sound = .default
 
         let request = UNNotificationRequest(

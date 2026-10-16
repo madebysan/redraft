@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="Companion"
+APP_NAME="Redraft"
 LEGACY_APP_NAME="CompanionV2"
 PRODUCT_NAME="Companion"
 BUNDLE_ID="com.santiagoalonso.companion"
@@ -26,7 +26,7 @@ ICON_FILE="$PACKAGE_DIR/Sources/Companion/Resources/AppIcon.icns"
 # Isolated visual QA: no installed app replacement, signing identity, or live defaults.
 if [[ "$MODE" == "--preview" ]]; then
   shift
-  PREVIEW_BUNDLE="$DIST_DIR/CompanionPreview.app"
+  PREVIEW_BUNDLE="$DIST_DIR/RedraftPreview.app"
   swift build --package-path "$PACKAGE_DIR"
   PREVIEW_BINARY="$(swift build --package-path "$PACKAGE_DIR" --show-bin-path)/$PRODUCT_NAME"
   mkdir -p "$PREVIEW_BUNDLE/Contents/MacOS" "$PREVIEW_BUNDLE/Contents/Resources"

@@ -42,7 +42,7 @@ final class UserSettings {
                 defaultRouteID: Self.recommendedInstructionRoute.id,
                 routeForProvider: { raw in Provider(rawValue: raw).flatMap { self.defaultModelRoute(for: $0)?.id } })
         } catch {
-            writingMigrationError = "Couldn't migrate writing settings. Old actions are preserved. Check available disk space and reopen Companion."
+            writingMigrationError = "Couldn't migrate writing settings. Old actions are preserved. Check available disk space and reopen Redraft."
         }
     }
 

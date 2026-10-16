@@ -6,6 +6,7 @@ All notable changes to Companion are documented here.
 
 ### Changed
 
+- Renamed from Companion to Redraft: app name, menus, windows, notifications, DMG and docs. The bundle ID, saved settings, history folder and Keychain entries keep the old name, so an existing install keeps its keys and permissions. If Companion.app is in Applications, quit it and move it to the Trash after installing Redraft.
 - Companion no longer asks for Input Monitoring. The shortcut uses the system's hotkey service, which works in every app without it; only Companion's own permission check needed it, and that check was what made macOS ask. Accessibility is the one permission left. An existing Input Monitoring grant can be removed in System Settings → Privacy & Security.
 
 ## [0.5.3] - 2026-10-09
