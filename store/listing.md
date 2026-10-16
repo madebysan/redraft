@@ -4,7 +4,7 @@ Draft 2026-10-16. Free. First submission, manual release after approval.
 
 | Field | Value |
 | --- | --- |
-| Name | Redraft |
+| Name | Redraft for Mac ("Redraft" is taken on the App Store) |
 | Subtitle (30 max) | Rewrite text in any app |
 | Bundle ID | com.santiagoalonso.redraft (the DMG keeps com.santiagoalonso.companion) |
 | SKU | redraft-mac |
