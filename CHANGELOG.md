@@ -4,8 +4,13 @@ All notable changes to Redraft (formerly Companion) are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- A Mac App Store edition, built from the same code with `REDRAFT_APP_STORE=1` (`script/build_app_store.sh`). It runs in the App Sandbox, so it checks the selection by copying it again before pasting instead of using the Accessibility API, asks once per cloud provider before sending any text, keeps its keys in its own Keychain entry, and gets updates from the App Store instead of Sparkle. Submitted for review on 2026-10-16 as "Redraft for Mac". The DMG edition is unchanged.
+
 ### Changed
 
+- New app icon: a white document with an orange highlighted line.
 - Renamed from Companion to Redraft: app name, menus, windows, notifications, DMG and docs. The bundle ID, saved settings, history folder and Keychain entries keep the old name, so an existing install keeps its keys and permissions. If Companion.app is in Applications, quit it and move it to the Trash after installing Redraft.
 - Companion no longer asks for Input Monitoring. The shortcut uses the system's hotkey service, which works in every app without it; only Companion's own permission check needed it, and that check was what made macOS ask. Accessibility is the one permission left. An existing Input Monitoring grant can be removed in System Settings → Privacy & Security.
 
