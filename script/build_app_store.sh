@@ -8,6 +8,7 @@
 set -euo pipefail
 
 MODE="${1:-store}"
+if [[ -n "${REDRAFT_MAS_PROFILE:-}" ]]; then REDRAFT_MAS_PROFILE="$(realpath "$REDRAFT_MAS_PROFILE")"; fi
 TEAM_ID="QAMM2A6WRQ"
 BUNDLE_ID="${REDRAFT_MAS_BUNDLE_ID:-com.santiagoalonso.redraft}"
 APP_SIGN_IDENTITY="Apple Distribution: Santiago Alonso Alexandre ($TEAM_ID)"
