@@ -3,6 +3,7 @@ import AppKit
 @main
 struct CompanionApp {
     static func main() {
+        #if !APP_STORE
         // Explicit local configuration command; never print the credential.
         if ProcessInfo.processInfo.arguments.contains("--import-openrouter-key") {
             guard let key = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"], !key.isEmpty else {
@@ -32,6 +33,7 @@ struct CompanionApp {
             }
             exit(configured && accessible && secure ? 0 : 1)
         }
+        #endif
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

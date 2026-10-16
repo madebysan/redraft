@@ -40,7 +40,8 @@ final class TextGrabber {
             logger.notice("rewrite already in progress — ignoring trigger")
             return
         }
-        guard AXIsProcessTrusted() else {
+        guard Permissions.isGranted else {
+            Permissions.request()
             CommandPaletteWindowController.shared.showSetupRequired(
                 "Enable Redraft in System Settings → Privacy & Security → Accessibility on this Mac, then reopen Redraft. This permission is needed to read and replace selected text."
             )
@@ -110,6 +111,9 @@ final class TextGrabber {
     }
 
     private func selectedTextBounds(from element: AXUIElement) -> CGRect? {
+        #if APP_STORE
+        return nil
+        #else
         var rangeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(
             element,
@@ -166,6 +170,7 @@ final class TextGrabber {
             return nil
         }
         return rect
+        #endif
     }
 
     func cancelPaletteSession() {
@@ -256,6 +261,20 @@ final class TextGrabber {
                 logger.error("Generation failed request=\(requestID.uuidString, privacy: .public) elapsed_ms=\(Int(elapsed * 1000)): \(error.localizedDescription)")
                 await MainActor.run {
                     guard self.activeRequestID == requestID else { return }
+                    #if APP_STORE
+                    if case RewriteDispatcher.DispatchError.needsCloudConsent(let provider) = error {
+                        if self.askCloudConsent(provider) {
+                            UserSettings.shared.grantCloudConsent(for: provider)
+                            self.runPaletteRewrite(title: title, historyLabel: historyLabel, images: images, request: request)
+                        } else {
+                            self.cancelPaletteSession()
+                            CommandPaletteWindowController.shared.showError(
+                                "Nothing was sent. To keep text on this Mac, choose Local in Settings → Models."
+                            )
+                        }
+                        return
+                    }
+                    #endif
                     if case CompletionError.incomplete(let partial) = error, !partial.isEmpty {
                         self.handOffToClipboard(partial, reason: "The model stopped early. The partial result is copied; paste it with ⌘V.")
                         return
@@ -276,6 +295,26 @@ final class TextGrabber {
             }
         }
     }
+
+    #if APP_STORE
+    // Asked once per provider, before any text leaves the Mac (App Store guideline 5.1.2(i)).
+    private func askCloudConsent(_ provider: UserSettings.Provider) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Send text to \(provider.companyName)?"
+        alert.informativeText = """
+            To rewrite, Redraft sends the selected text and your instruction to \(provider.companyName), \
+            the AI provider you chose, using your own API key. \(provider.companyName)'s privacy policy applies \
+            to that text. If you add "use web search", it also searches the web for you.
+
+            Redraft has no server and collects nothing. Results stay in History on this Mac. \
+            You can switch to a local model in Settings → Models at any time.
+            """
+        alert.addButton(withTitle: "Allow")
+        alert.addButton(withTitle: "Don't Allow")
+        NSApp.activate(ignoringOtherApps: true)
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+    #endif
 
     private func recordHistory(result: String, actionLabel: String, provider: UserSettings.Provider,
         model: String, selectedWordCount: Int, imageFileNames: [String], requestDurationSeconds: Double,
@@ -321,33 +360,74 @@ final class TextGrabber {
                 self.handOffToClipboard(rewritten, reason: Self.couldNotReturnReason)
                 return
             }
-            guard AXIsProcessTrusted(),
-                  session.selectionSnapshot?.stillMatches(processID: sourceApp.processIdentifier, selectedText: session.selectedText) == true else {
-                self.handOffToClipboard(rewritten, reason: "This app doesn't let Redraft replace the selection. The result is copied; paste it with ⌘V.")
+            #if APP_STORE
+            // Sandboxed: no Accessibility API, so copy the selection again and compare.
+            guard Permissions.isGranted else {
+                self.handOffToClipboard(rewritten, reason: Self.cannotReplaceReason)
                 return
             }
-            pasteboard.clearContents()
-            pasteboard.setString(rewritten, forType: .string)
-
-            // Simulate Cmd+V to paste
-            self.simulateKeyPress(keyCode: UInt16(kVK_ANSI_V), modifiers: .maskCommand)
-
-            // The result now belongs on the clipboard, even if the status is dismissed.
-            self.activeSession = nil
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.selectionStillMatchesByCopying(session.selectedText, pasteboard: pasteboard) { matches in
                 guard self.activeRequestID == pasteID else { return }
-                self.activeRewriteTask = nil
-                self.activeRequestID = nil
-                self.activeSession = nil
-                self.onStatusChange?(.done)
-                CommandPaletteWindowController.shared.showSuccess(
-                    subtitle: isGenerating ? "Text inserted · copied to clipboard" : "Replacement sent · copied to clipboard"
-                )
-                self.isProcessing = false
+                guard matches else {
+                    self.handOffToClipboard(rewritten, reason: Self.selectionChangedReason)
+                    return
+                }
+                self.pasteNow(rewritten, pasteboard: pasteboard, pasteID: pasteID, isGenerating: isGenerating)
+            }
+            #else
+            guard Permissions.isGranted,
+                  session.selectionSnapshot?.stillMatches(processID: sourceApp.processIdentifier, selectedText: session.selectedText) == true else {
+                self.handOffToClipboard(rewritten, reason: Self.cannotReplaceReason)
+                return
+            }
+            self.pasteNow(rewritten, pasteboard: pasteboard, pasteID: pasteID, isGenerating: isGenerating)
+            #endif
+        }
+    }
+
+    private func pasteNow(_ rewritten: String, pasteboard: NSPasteboard, pasteID: UUID, isGenerating: Bool) {
+        pasteboard.clearContents()
+        pasteboard.setString(rewritten, forType: .string)
+
+        // Simulate Cmd+V to paste
+        simulateKeyPress(keyCode: UInt16(kVK_ANSI_V), modifiers: .maskCommand)
+
+        // The result now belongs on the clipboard, even if the status is dismissed.
+        activeSession = nil
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard self.activeRequestID == pasteID else { return }
+            self.activeRewriteTask = nil
+            self.activeRequestID = nil
+            self.activeSession = nil
+            self.onStatusChange?(.done)
+            CommandPaletteWindowController.shared.showSuccess(
+                subtitle: isGenerating ? "Text inserted · copied to clipboard" : "Replacement sent · copied to clipboard"
+            )
+            self.isProcessing = false
+        }
+    }
+
+    #if APP_STORE
+    // ⌘C again just before pasting. A match means the same text is still selected; when
+    // nothing was selected, the clipboard must stay unchanged (nothing selected now either).
+    private func selectionStillMatchesByCopying(_ expected: String, pasteboard: NSPasteboard,
+                                                completion: @escaping (Bool) -> Void) {
+        let before = pasteboard.changeCount
+        simulateKeyPress(keyCode: UInt16(kVK_ANSI_C), modifiers: .maskCommand)
+        pollClipboardChange(pasteboard: pasteboard, expected: before, attempts: 10, interval: 0.05) { changed in
+            if expected.isEmpty {
+                completion(!changed)
+            } else {
+                completion(changed && pasteboard.string(forType: .string) == expected)
             }
         }
     }
+
+    private static let selectionChangedReason = "The selection changed, so Redraft didn't replace it. The result is copied; paste it with ⌘V."
+    #endif
+
+    private static let cannotReplaceReason = "This app doesn't let Redraft replace the selection. The result is copied; paste it with ⌘V."
 
     private static let couldNotReturnReason = "Couldn't return to the original app. The result is copied; paste it with ⌘V."
 

@@ -13,6 +13,7 @@ final class RewriteDispatcher {
         case emptySelectionForAction(String)
         case noProviderAvailable(String)
         case imageUnsupported(String)
+        case needsCloudConsent(UserSettings.Provider)
 
         var errorDescription: String? {
             switch self {
@@ -22,6 +23,8 @@ final class RewriteDispatcher {
                 return "\(actionName) needs selected text. Type a custom prompt to create new text."
             case .noProviderAvailable(let detail): return detail
             case .imageUnsupported(let detail): return detail
+            case .needsCloudConsent(let provider):
+                return "Allow Redraft to send text to \(provider.companyName) first: press ⌘⇧E on selected text and choose Allow."
             }
         }
     }
@@ -105,6 +108,11 @@ final class RewriteDispatcher {
         guard settings.hasAccess(to: route.provider) else {
             throw DispatchError.noProviderAvailable("Add a \(route.provider.shortLabel) API key in Settings → Models or choose another provider.")
         }
+        #if APP_STORE
+        guard settings.hasCloudConsent(for: route.provider) else {
+            throw DispatchError.needsCloudConsent(route.provider)
+        }
+        #endif
         try validateImages(images, route: route)
 
         switch route.provider {

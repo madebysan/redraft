@@ -1,4 +1,12 @@
 import AppKit
+
+#if APP_STORE
+// The Mac App Store delivers updates itself (guideline 2.4.5 (vii)); no Sparkle in that build.
+enum Updates {
+    static func start() {}
+    static func menuItem() -> NSMenuItem? { nil }
+}
+#else
 import Sparkle
 
 // In-app updates. The feed lives on the repo's GitHub Releases (Info.plist
@@ -15,7 +23,7 @@ enum Updates {
         }
     }
 
-    static func menuItem() -> NSMenuItem {
+    static func menuItem() -> NSMenuItem? {
         let item = NSMenuItem(
             title: "Check for Updates…",
             action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
@@ -25,3 +33,4 @@ enum Updates {
         return item
     }
 }
+#endif

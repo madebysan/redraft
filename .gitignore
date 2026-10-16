@@ -1,4 +1,5 @@
 .build/
+.build-appstore/
 build/
 .swiftpm/
 dist/

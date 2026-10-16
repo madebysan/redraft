@@ -32,6 +32,9 @@ struct TextSelectionSnapshot {
     let fingerprint: SelectionFingerprint
 
     static func capture(processID: pid_t) -> TextSelectionSnapshot? {
+        #if APP_STORE
+        return nil // The Accessibility API is unavailable in the sandbox.
+        #else
         let application = AXUIElementCreateApplication(processID)
         guard let focused = attribute(kAXFocusedUIElementAttribute, of: application),
               CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
@@ -48,6 +51,7 @@ struct TextSelectionSnapshot {
             range: range,
             value: attribute(kAXValueAttribute, of: element) as? String
         ))
+        #endif
     }
 
     func stillMatches(processID: pid_t, selectedText: String) -> Bool {
@@ -55,9 +59,11 @@ struct TextSelectionSnapshot {
         return fingerprint.matches(current.fingerprint, expectedText: selectedText, sameElement: CFEqual(element, current.element))
     }
 
+    #if !APP_STORE
     private static func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
         var result: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &result) == .success else { return nil }
         return result
     }
+    #endif
 }

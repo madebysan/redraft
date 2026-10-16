@@ -545,7 +545,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         }
 
         permissionsStack.addArrangedSubview(makePermissionRow(
-            granted: AXIsProcessTrusted(),
+            granted: Permissions.isGranted,
             name: "Accessibility",
             detail: "Lets Redraft copy selected text and paste the replacement.",
             action: #selector(openAccessibilitySettings)

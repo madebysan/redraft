@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start periodic permission monitoring
         if !isPreviewLaunch {
-            wasPermissionsOK = AXIsProcessTrusted()
+            wasPermissionsOK = Permissions.isGranted
             startPermissionMonitoring()
         }
 
@@ -79,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(openAbout),
             keyEquivalent: ""
         )
-        appMenu.addItem(Updates.menuItem())
+        if let updates = Updates.menuItem() { appMenu.addItem(updates) }
         appMenu.addItem(.separator())
         appMenu.addItem(
             withTitle: "Quit Redraft",
@@ -334,10 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func checkAccessibilityPermission() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
-
-        if !trusted {
+        if !Permissions.request() {
             NSLog("Redraft: Accessibility permission not granted. The app needs this to simulate Cmd+C/Cmd+V.")
         }
     }
@@ -362,7 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func recheckPermissions() {
-        let allOK = AXIsProcessTrusted()
+        let allOK = Permissions.isGranted
 
         if wasPermissionsOK && !allOK {
             DispatchQueue.main.async {

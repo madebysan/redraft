@@ -115,6 +115,18 @@ final class UserSettings {
             }
         }
 
+        // The company that receives the text, for the consent prompt.
+        var companyName: String {
+            switch self {
+            case .openAI: return "OpenAI"
+            case .claude: return "Anthropic"
+            case .lmStudio: return "LM Studio on your Mac"
+            case .deepSeek: return "DeepSeek"
+            case .fal: return "fal"
+            case .openRouter: return "OpenRouter"
+            }
+        }
+
         var shortLabel: String {
             switch self {
             case .openAI: return "OpenAI"
@@ -997,6 +1009,18 @@ final class UserSettings {
     var hasCompletedOnboarding: Bool {
         get { defaults.bool(forKey: Keys.hasCompletedOnboarding) }
         set { defaults.set(newValue, forKey: Keys.hasCompletedOnboarding) }
+    }
+
+    // App Store guideline 5.1.2(i): explicit permission before text goes to a third-party AI
+    // provider. Asked once per provider; local models never leave the Mac.
+    func hasCloudConsent(for provider: Provider) -> Bool {
+        provider == .lmStudio || (defaults.stringArray(forKey: "cloudConsentProviders") ?? []).contains(provider.rawValue)
+    }
+
+    func grantCloudConsent(for provider: Provider) {
+        var granted = Set(defaults.stringArray(forKey: "cloudConsentProviders") ?? [])
+        granted.insert(provider.rawValue)
+        defaults.set(granted.sorted(), forKey: "cloudConsentProviders")
     }
 
     var launchAtLogin: Bool {
