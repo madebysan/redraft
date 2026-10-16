@@ -2,8 +2,8 @@
 
 <h1>Redraft</h1>
 
-<p>Select text. Say what you want changed. Keep writing.<br>
-Writing Tools for every Mac: rewrite selected text in any app with your own or a local model.</p>
+<p>Writing Tools for every Mac, including Intel and macOS 13.<br>
+Select text in any app, type what to change, and it's replaced in place.</p>
 
 <p><strong>Version 0.5.3</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
@@ -15,44 +15,28 @@ Writing Tools for every Mac: rewrite selected text in any app with your own or a
 
 <p><a href="https://github.com/madebysan/redraft/releases/latest">Download Redraft</a></p>
 
-![Redraft Capsule](assets/screenshots/capsule.png)
+![Redraft's capsule with its two choices, fix grammar and type an instruction](assets/screenshots/capsule.png)
 
-A small menu bar app for fixing grammar, rewriting, translating, and summarizing text where you already work. No separate chat window to copy things back from.
+Redraft is a menu bar app for fixing grammar, rewriting, translating and summarizing text where you already write, with no chat window to copy back from.
 
-## One shortcut, two choices
+- Press `⌘⇧E` on a selection, then fix grammar or type an instruction like "make this warmer".
+- The result replaces your text, and your editor's `⌘Z` undoes it.
+- Use your own cloud key or a local model through LM Studio.
 
-Select text and press **⌘⇧E**. Fix grammar immediately, or type an instruction: “make this warmer,” “translate to Spanish,” “summarize in three bullets.”
+## How it works
 
-The result replaces your selection and stays on the clipboard. Your editor's normal **⌘Z** undoes the paste. If Redraft can't safely verify the selection, it leaves your text alone, copies the result to the clipboard, and tells you to paste it with **⌘V**.
+With nothing selected, Redraft writes something new at the cursor. Add "use web search" to an instruction to look things up; the sources stay in History, not in your text. If Redraft can't safely confirm the selection, it leaves your text alone and puts the result on the clipboard. The full behavior is in [docs/how-it-works.md](docs/how-it-works.md).
 
-Prefer typing? Skip the icons with **Settings → General → Open with → Instruction field**. With nothing selected, write something new at the cursor.
+## Privacy
 
-## Search when you need it
+Redraft asks for one permission, Accessibility, to read your selection and copy and paste for you, and only when you call it. Cloud keys stay in the macOS Keychain, and there's no Redraft server or analytics. Web search sends context to a search provider. Redraft checks for updates through [Sparkle](https://sparkle-project.org).
 
-Add **“use web search”** to your instruction to look things up. Sources stay in History, not in the inserted text. Otherwise, no search runs.
+## Install
 
-Search adds cost and delay, and sends context to a search provider. Review important claims; AI output isn't guaranteed accurate.
+Download the signed, notarized DMG from the [latest release](https://github.com/madebysan/redraft/releases/latest), drag Redraft to Applications, choose a model in Settings and allow Accessibility. When upgrading, quit the old app first; settings and keys carry over. Changes are in the [release notes](CHANGELOG.md).
 
-## Bring your own model
+---
 
-Pick Local or Cloud in Settings → Models. Local runs a model on your Mac through LM Studio. Cloud uses one provider, one API key and one model; the recommended choice is Gemini Flash Lite through OpenRouter.
-
-Keys live in macOS Keychain. No Redraft backend or analytics. Cloud usage is billed separately; results and history stay saved on your Mac.
-
-## Permissions, plainly
-
-macOS asks you to allow one thing. Here is what Redraft does with it:
-
-- **Accessibility** lets Redraft read the text you selected, open its panel next to it, and press **⌘C** and **⌘V** for you to copy the selection and paste the result. It does this only when you call Redraft. If you cancel, your previous clipboard comes back.
-
-The shortcut works in every app without Input Monitoring, so Redraft doesn't ask for it.
-
-## Get started
-
-Download the signed, notarized DMG, drag Redraft into Applications, configure a provider, and grant Accessibility.
-
-**Upgrading?** Quit the old app before replacing it. Your settings and keys are preserved; permissions may need re-granting.
-
-[Release notes](CHANGELOG.md) · [Report an issue](https://github.com/madebysan/redraft/issues) · [MIT license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[MIT](LICENSE). Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Made by [santiagoalonso.com](https://santiagoalonso.com)
