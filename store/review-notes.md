@@ -4,9 +4,7 @@ Hello App Review team.
 
 Redraft is a menu bar app that rewrites selected text in any app with an AI model the user brings: a free local model (LM Studio) or the user's own cloud API key (OpenRouter, OpenAI, Anthropic, DeepSeek). Redraft has no account and no server, and sells nothing, so it has no built-in model or demo key.
 
-The attached screen recording shows the full flow with a local model, from selecting text to the replaced result.
-
-To test it yourself:
+To test it:
 1. Install LM Studio (free, lmstudio.ai), download any small chat model (for example gemma-3-4b) and turn on its local server. Or use any OpenRouter, OpenAI or Anthropic API key.
 2. Open Redraft. It appears in the menu bar (sparkle and magnifying glass icon). Onboarding asks Local or Cloud: choose Local (or Cloud and paste a key) and click Get Started.
 3. macOS asks for permission under Privacy & Security → Accessibility. Turn on Redraft. This is the "post keyboard events" permission: Redraft presses ⌘C to copy the selection and ⌘V to paste the result, only when the user presses the Redraft shortcut. Redraft does not use the Accessibility API (AXUIElement) and does not read the screen.
