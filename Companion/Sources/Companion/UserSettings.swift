@@ -8,6 +8,12 @@ final class UserSettings {
     private let credentials: CredentialStore
     private(set) var credentialStorageError: String?
     private(set) var writingMigrationError: String?
+    // The store edition keeps its own keys, so it never asks for the DMG edition's Keychain items.
+    #if APP_STORE
+    static let keychainService = "com.santiagoalonso.redraft.providers"
+    #else
+    static let keychainService = "com.santiagoalonso.companion.providers"
+    #endif
     private static let legacyCompanionV2BundleID = "com.santiagoalonso.companion.v2"
     private static let legacyRewriteBundleID = "com.santiagoalonso.rewrite"
 
@@ -19,7 +25,7 @@ final class UserSettings {
         defaults = suppliedDefaults ?? (isolated ? UserDefaults(suiteName: "CompanionPreview-\(UUID().uuidString)")! : .standard)
         credentials = suppliedCredentials ?? CredentialStore(backend: isolated
             ? MemoryCredentialBackend()
-            : KeychainCredentialBackend(service: "com.santiagoalonso.companion.providers"))
+            : KeychainCredentialBackend(service: Self.keychainService))
         if !isolated && suppliedDefaults == nil {
             migrateLegacyCompanionV2DefaultsIfNeeded()
             migrateLegacyRewriteDefaultsIfNeeded()
