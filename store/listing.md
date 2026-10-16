@@ -13,8 +13,8 @@ Draft 2026-10-16. Free. First submission, manual release after approval.
 | Age rating | 4+ (no objectionable content; the user writes the instructions) |
 | Export compliance | HTTPS only, exempt (`ITSAppUsesNonExemptEncryption` = false) |
 | Copyright | 2026 Santiago Alonso |
-| Support URL | needed: public page |
-| Privacy policy URL | needed: public page with `privacy-policy.md` |
+| Support URL | https://santiagoalonso.com/redraft/support (page written in personal-portfolio, not yet deployed) |
+| Privacy policy URL | https://santiagoalonso.com/redraft/privacy (same) |
 
 ## Promotional text (170 max)
 
