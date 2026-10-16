@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Companion are documented here.
+All notable changes to Redraft (formerly Companion) are documented here.
 
 ## [Unreleased]
 

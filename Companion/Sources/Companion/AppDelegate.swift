@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
 
         if !trusted {
-            NSLog("Companion: Accessibility permission not granted. The app needs this to simulate Cmd+C/Cmd+V.")
+            NSLog("Redraft: Accessibility permission not granted. The app needs this to simulate Cmd+C/Cmd+V.")
         }
     }
 
