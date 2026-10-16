@@ -520,16 +520,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         return field
     }
 
-    private func makeSecureField(value: String, placeholder: String) -> NSSecureTextField {
-        let field = NSSecureTextField(frame: .zero)
-        field.stringValue = value
-        field.placeholderString = placeholder
-        field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        field.widthAnchor.constraint(greaterThanOrEqualToConstant: 330).isActive = true
-        return field
-    }
-
     private func makeSmallButton(_ title: String, action: Selector) -> NSButton {
         let button = NSButton(title: title, target: self, action: action)
         button.bezelStyle = .rounded
@@ -940,8 +930,4 @@ extension SettingsWindow: NSTableViewDataSource, NSTableViewDelegate {
 
         return cell
     }
-}
-
-private final class FlippedDocumentView: NSView {
-    override var isFlipped: Bool { true }
 }

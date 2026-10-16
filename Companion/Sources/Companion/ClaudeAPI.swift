@@ -81,32 +81,4 @@ final class ClaudeAPI {
         return content
     }
 
-    // Validate an API key by making a minimal request
-    func validateKey(_ key: String) async -> Bool {
-        let body: [String: Any] = [
-            "model": Self.modelName,
-            "max_tokens": 1,
-            "messages": [
-                ["role": "user", "content": "Hi"]
-            ]
-        ]
-
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue(key, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 10
-
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse {
-                return httpResponse.statusCode == 200
-            }
-            return false
-        } catch {
-            return false
-        }
-    }
 }

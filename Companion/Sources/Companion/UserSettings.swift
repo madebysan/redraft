@@ -212,7 +212,6 @@ final class UserSettings {
         name: "DeepSeek V4.1 Flash", provider: .openRouter,
         model: "deepseek/deepseek-v4.1-flash", supportsImages: true
     )
-    static let defaultRemoteCatalogModelCount = defaultRemoteCatalogModels.count
     static let recommendedInstructionRoute = ModelRoute(
         id: ModelRoute.makeID(provider: .openRouter, model: "google/gemini-3.5-flash-lite"),
         name: "Gemini 3.5 Flash Lite", provider: .openRouter,
