@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>0.5.3</string>
 	<key>CFBundleVersion</key>
-	<string>19</string>
+	<string>20</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
@@ -53,11 +53,11 @@
 			</array>
 		</dict>
 	</array>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/madebysan/redraft/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>UAKRJmeYrucyUDj6yLMjYEKfKXE+M4iLxw7qKBrV8yU=</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
 </dict>
 </plist>
