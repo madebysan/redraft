@@ -4,11 +4,11 @@ import XCTest
 
 final class PaletteLifecycleTests: XCTestCase {
     @MainActor
-    func testInstructionCanBeTheInitialViewWithoutActivatingTheApplication() {
+    func testCapsuleOpensAsAFocusedFieldWithoutActivatingTheApplication() {
         let palette = CommandPaletteWindowController()
         defer { palette.close() }
         let originalApp = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        palette.show(selectedText: "A sample selection", defaultView: .instruction)
+        palette.show(selectedText: "A sample selection")
         XCTAssertTrue(palette.window!.styleMask.contains(.nonactivatingPanel))
         XCTAssertFalse(palette.window!.canBecomeMain)
         XCTAssertEqual(palette.window!.frame.width, 340)
@@ -29,23 +29,17 @@ final class PaletteLifecycleTests: XCTestCase {
     }
 
     @MainActor
-    func testCapsuleHasTwoActionsAndPencilOpensFocusedInput() {
+    func testCapsuleHasOnlyTheRunButtonBesideTheField() {
         let palette = CommandPaletteWindowController()
         defer { palette.close() }
         palette.show(selectedText: "A sample selection")
         func buttons(in view: NSView) -> [NSButton] {
             (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons(in: $0) }
         }
-        let actions = buttons(in: palette.window!.contentView!)
-        XCTAssertEqual(actions.count, 2)
-        XCTAssertTrue(actions.allSatisfy { $0.acceptsFirstMouse(for: nil) })
-        XCTAssertTrue(actions.allSatisfy { $0.focusRingType == .none })
-        XCTAssertEqual(palette.window!.frame.width, 100) // 80 pt glass + shadow inset.
-        let pencil = actions.first { $0.toolTip == "Write an instruction (Tab)" }
-        XCTAssertNotNil(pencil)
-        pencil?.performClick(nil)
+        let controls = buttons(in: palette.window!.contentView!)
+        XCTAssertEqual(controls.map(\.toolTip), ["Run (Return)"])
+        XCTAssertTrue(controls.allSatisfy { $0.acceptsFirstMouse(for: nil) && $0.focusRingType == .none })
         XCTAssertEqual(palette.window!.frame.width, 340)
-        XCTAssertNotNil(palette.window!.firstResponder as? NSTextView)
     }
 
     @MainActor

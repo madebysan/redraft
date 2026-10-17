@@ -2,13 +2,13 @@
 
 The shortcut, web search, model choices and the one permission it needs, in full. The short version is the [README](../README.md).
 
-## One shortcut, two choices
+## One shortcut, one field
 
-Select text and press **⌘⇧E**. Fix grammar immediately, or type an instruction: “make this warmer,” “translate to Spanish,” “summarize in three bullets.”
+Select text and press **⌘⇧E**, then type what should change: “fix grammar,” “make this warmer,” “translate to Spanish,” “summarize in three bullets.” Return runs it.
 
 The result replaces your selection and stays on the clipboard. Your editor's normal **⌘Z** undoes the paste. If Redraft can't safely verify the selection, it leaves your text alone, copies the result to the clipboard, and tells you to paste it with **⌘V**.
 
-Prefer typing? Skip the icons with **Settings → General → Open with → Instruction field**. With nothing selected, write something new at the cursor.
+With nothing selected, write something new at the cursor.
 
 ## Search when you need it
 

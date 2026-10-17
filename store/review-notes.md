@@ -9,7 +9,7 @@ To test it:
 2. Open Redraft. It appears in the menu bar (sparkle and magnifying glass icon). Onboarding asks Local or Cloud: choose Local (or Cloud and paste a key) and click Get Started.
 3. macOS asks for permission under Privacy & Security → Accessibility. Turn on Redraft. This is the "post keyboard events" permission: Redraft presses ⌘C to copy the selection and ⌘V to paste the result, only when the user presses the Redraft shortcut. Redraft does not use the Accessibility API (AXUIElement) and does not read the screen.
 4. Open TextEdit, type a sentence with a typo, select it, press ⌘⇧E.
-5. Press Return to fix grammar, or type an instruction such as "make this formal" and press Return.
+5. Type an instruction such as "fix grammar" or "make this formal" and press Return.
 6. With a cloud key, the first time Redraft asks before sending text to that provider (guideline 5.1.2(i)). Click Allow.
 7. The selection is replaced. ⌘Z in TextEdit undoes it. History is in the menu bar menu → Settings... → History.
 

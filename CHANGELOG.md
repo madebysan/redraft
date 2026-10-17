@@ -2,7 +2,7 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
-## [Unreleased]
+## [0.5.4] - 2026-10-17
 
 ### Added
 
@@ -10,6 +10,7 @@ All notable changes to Redraft (formerly Companion) are documented here.
 
 ### Changed
 
+- The Capsule is one instruction field. The two-icon view, the General → Open with setting, the Fix Grammar preset and shortcut, and the Services menu item are removed; nothing is injected into prompts that the user didn't type. Return runs what was typed, and Escape closes.
 - New app icon: a white document with an orange highlighted line.
 - Renamed from Companion to Redraft: app name, menus, windows, notifications, DMG and docs. The bundle ID, saved settings, history folder and Keychain entries keep the old name, so an existing install keeps its keys and permissions. If Companion.app is in Applications, quit it and move it to the Trash after installing Redraft.
 - Companion no longer asks for Input Monitoring. The shortcut uses the system's hotkey service, which works in every app without it; only Companion's own permission check needed it, and that check was what made macOS ask. Accessibility is the one permission left. An existing Input Monitoring grant can be removed in System Settings → Privacy & Security.

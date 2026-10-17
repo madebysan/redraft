@@ -9,7 +9,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionTimer: Timer?
     private var wasPermissionsOK = false
     private var appObserver: NSObjectProtocol?
-    private let serviceProvider = ServiceProvider()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let isPreviewLaunch = isPreviewMode()
@@ -36,9 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HotkeyManager.shared.register()
         }
 
-        // Register Services menu provider (right-click > Services > Fix Grammar)
-        NSApp.servicesProvider = serviceProvider
-        NSUpdateDynamicServices()
 
         // Start periodic permission monitoring
         if !isPreviewLaunch {
@@ -143,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Replays the clipboard hand-off: the palette is hidden for the paste, the source
                 // app is re-activated, then the "copied" capsule is shown instead of a paste.
                 let palette = CommandPaletteWindowController.shared
-                palette.showRunning(title: "Fix Grammar")
+                palette.showRunning(title: "Running custom prompt")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     palette.prepareForReplacement()
                     NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.TextEdit").first?.activate()

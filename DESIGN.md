@@ -4,14 +4,14 @@ Redraft is a frequent, keyboard-first writing utility. The command palette shoul
 
 ## Palette
 
-Version 0.4.0 uses a non-activating panel and does not activate Redraft when presenting it. General → Open with selects action icons or a directly focused instruction field (existing default remains icons). Hover tracking also works while the source app is active. This behavior has automated coverage and was included in the locally installed build tested by san; cross-machine and older-OS interaction still require device testing.
+The Capsule is a non-activating panel and does not activate Redraft when presenting it. It opens straight into a focused instruction field; there is no icons view and no Open-with setting. Hover tracking also works while the source app is active. This behavior has automated coverage and was included in the locally installed build tested by san; cross-machine and older-OS interaction still require device testing.
 
-- Selected direction: **Capsule**, approved by san on September 15, 2026. The floating AppKit `NSPanel` contains one 80 × 36-point glass pill with two 36-point action targets: Fix Grammar and Custom Instruction.
+- Selected direction: **Capsule**, approved by san on September 15, 2026. The floating AppKit `NSPanel` contains one 320 × 40-point glass pill: an instruction field and a Run button. Fix Grammar is not a separate action; the user types it like any other instruction.
 - Use native `NSGlassEffectView` clear glass on macOS 26+, grouped in `NSGlassEffectContainerView`. Follow system appearance. On macOS 13–25 use a native popover material fallback. No painted white background or forced Light Aqua.
 - Use SF Symbols at 16 points for actions and 13 points for feedback, with quiet hover feedback, labels for accessibility, and precise tooltips.
 - Icon buttons have no blue focus ring. Logical keyboard focus and shortcuts remain active. The instruction field releases focus before native replacement; success feedback must not reactivate Redraft.
-- Return or Command-1 runs Fix Grammar. Tab, the pencil, or Command-2 opens the instruction field. Left/Right moves between the two actions. Command-comma opens Settings. Provider choices stay in Settings and the menu bar.
-- The instruction field expands only on request to 320 × 40 points. Return submits; Escape returns to the two actions while retaining the draft, then Escape closes the palette.
+- Return runs the typed instruction; an empty field beeps. Command-comma opens Settings. Provider choices stay in Settings and the menu bar.
+- Escape closes the palette; a draft typed before cancelling is kept for the next open.
 - Loading, completion, and collapsed error feedback use one 30-point glass circle. Click loading or press Escape to cancel. A checkmark disappears after 700 ms. Error details and Settings are available on demand from the error icon.
 - State content fades over 160 ms with ease-out. Opening and keyboard action selection are immediate. Reduce Motion removes the fade and uses static dots instead of a spinner. Progress stops when hidden.
 - The transparent window reserves a 10-point inset around the glass. Position beside the selection, expanding from the same leading edge and clamping to the screen.
@@ -23,7 +23,7 @@ Version 0.4.0 uses a non-activating panel and does not activate Redraft when pre
 - Web search has no extra palette button. The explicit typed phrase `use web search` opts a request in. History shows a Web search marker and a secondary source-link list beneath the result in the existing scroll area. Copy Result and native replacement exclude this source list. Search status must not add a larger floating surface.
 
 - Models is one pane with a Local or Cloud switch at the top; only the chosen branch is visible. Local: a status line with Refresh, one model menu, the image-input checkbox, the cloud fallback checkbox, and the server address behind an Advanced link. Cloud: one provider menu, one secure key field with Check key and a Get-a-key link, and one model control. For OpenRouter that control is a menu whose first entry is Recommended (the tested Gemini 3.5 Flash Lite + DeepSeek V4.1 Flash pair) plus a searchable catalog list to pick one model for both actions; for OpenAI, Claude and DeepSeek it is a text field with the default filled in. Both Capsule actions follow the single choice. No side-by-side provider grids, no enable-many model table.
-- Fix Grammar is a preset instruction on the single configured model; there is no separate grammar prompt. No action picker, naming, add/remove, or reordering controls.
+- There is no grammar preset, grammar prompt, or Services menu item. Everything the user wants is typed in the field. No action picker, naming, add/remove, or reordering controls.
 - Preserve saved keys and routes on upgrade. The mode is derived from the saved grammar route, the cloud provider from the saved instruction route. A setup the new pane cannot express (two different OpenRouter models) shows as Custom and keeps working until a new choice is made.
 - Preserve retired presets in a verified JSON recovery file before removing their preferences; expose recovery from Writing. Keep only a small compatibility reader, not an active saved-action system.
 - The legacy fal gateway appears as a provider only when a fal key exists. Other providers remain optional.

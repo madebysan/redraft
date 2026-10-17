@@ -21,7 +21,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
 
     private var modelsPane: ModelsSettingsPane!
     private var launchAtLoginCheckbox: NSButton!
-    private var paletteDefaultViewPopup: NSPopUpButton!
     private var shortcutLabel: NSTextField!
     private var shortcutMonitor: Any?
     private var permissionsStack: NSStackView!
@@ -214,14 +213,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 launchAtLoginCheckbox.state = UserSettings.shared.launchAtLogin ? .on : .off
                 section.addArrangedSubview(launchAtLoginCheckbox)
 
-                paletteDefaultViewPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-                paletteDefaultViewPopup.addItems(withTitles: UserSettings.PaletteDefaultView.allCases.map(\.title))
-                paletteDefaultViewPopup.selectItem(withTitle: UserSettings.shared.paletteDefaultView.title)
-                paletteDefaultViewPopup.target = self
-                paletteDefaultViewPopup.action = #selector(paletteDefaultViewChanged)
-                section.addArrangedSubview(makeSettingsRow(label: "Open with", control: paletteDefaultViewPopup))
-                section.addArrangedSubview(makeHelpLabel("Open directly into an instruction, or show the two action icons first."))
-
                 section.addArrangedSubview(makeHelpLabel(
                     "Redraft stays in the menu bar and opens the command palette with your global shortcut."
                 ))
@@ -251,12 +242,6 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
                 ))
             }
         }
-    }
-
-    @objc private func paletteDefaultViewChanged() {
-        let choices = UserSettings.PaletteDefaultView.allCases
-        guard choices.indices.contains(paletteDefaultViewPopup.indexOfSelectedItem) else { return }
-        UserSettings.shared.paletteDefaultView = choices[paletteDefaultViewPopup.indexOfSelectedItem]
     }
 
     private func makeModelsPane() -> NSView {

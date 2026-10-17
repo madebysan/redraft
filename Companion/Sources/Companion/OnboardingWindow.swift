@@ -50,7 +50,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
         contentView.addSubview(titleLabel)
 
         let descLabel = NSTextField(wrappingLabelWithString:
-            "Select text, press the shortcut, fix grammar or type an instruction.\n\n" +
+            "Select text, press the shortcut, and type what should change.\n\n" +
             "Choose where the model runs. You can change this any time in Settings → Models."
         )
         descLabel.translatesAutoresizingMaskIntoConstraints = false

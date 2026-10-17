@@ -2,18 +2,6 @@ import XCTest
 @testable import Companion
 
 final class StorageAndRoutingTests: XCTestCase {
-    func testPaletteDefaultViewPersistsWithoutChangingModelChoices() {
-        let defaults = isolatedDefaults()
-        let credentials = CredentialStore(backend: MemoryCredentialBackend())
-        let settings = UserSettings(defaults: defaults, credentials: credentials)
-        XCTAssertEqual(settings.paletteDefaultView, .icons)
-        let originalRoute = settings.customPromptRouteID
-        settings.paletteDefaultView = .instruction
-        let reopened = UserSettings(defaults: defaults, credentials: credentials)
-        XCTAssertEqual(reopened.paletteDefaultView, .instruction)
-        XCTAssertEqual(reopened.customPromptRouteID, originalRoute)
-    }
-
     func testRequestTimingPersistsAndOldHistoryStillDecodes() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("CompanionTimingTests-\(UUID().uuidString)")
         let store = GenerationHistoryStore(directory: folder)

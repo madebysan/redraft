@@ -1,0 +1,6 @@
+App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
+Subject: a horizontal frosted-glass capsule (a pill shape) floating just above three soft lines of text shown as rounded bars; the middle bar is highlighted bright orange and appears magnified and refracted through the glass. Centered, filling about 70% of the canvas.
+Style: frosted translucent glass, soft refraction, layered depth, pale gradient light. Palette: pale warm gray and white, one vivid orange #FF6B3D highlight.
+Bold, simple silhouette that stays readable at small sizes.
+No text. No UI screenshots, no logos, no device mockups.
+The reference images define rendering, material, lighting and palette only. Do not copy their subjects.

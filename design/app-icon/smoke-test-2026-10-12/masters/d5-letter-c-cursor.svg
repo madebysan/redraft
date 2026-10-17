@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g id="background"><rect width="1024" height="1024" fill="#FF6B3D"/></g>
+  <g transform="translate(-26 0)">
+    <g id="foreground-1" fill="#111111">
+      <path d="M704.9 282.2 A300 300 0 1 0 704.9 741.8 L621.3 642.2 A170 170 0 1 1 621.3 381.8 Z"/>
+    </g>
+    <g id="foreground-2" fill="#111111">
+      <rect x="764" y="350" width="52" height="324" rx="8"/>
+      <rect x="715" y="326" width="150" height="48" rx="8"/>
+      <rect x="715" y="650" width="150" height="48" rx="8"/>
+    </g>
+  </g>
+</svg>

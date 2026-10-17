@@ -186,12 +186,6 @@ final class TextGrabber {
         isProcessing = false
     }
 
-    func runFixGrammar() {
-        runPaletteRewrite(title: "Fix Grammar", historyLabel: "Fix Grammar", images: []) { text in
-            try await RewriteDispatcher.shared.generateGrammar(text)
-        }
-    }
-
     func runCustomInstruction(
         _ instruction: String,
         route: GenerationRoute = .auto,

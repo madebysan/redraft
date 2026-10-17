@@ -102,7 +102,8 @@ final class LocalServerTests: XCTestCase {
         settings.fallbackToClaude = false
         XCTAssertTrue(settings.adoptLocalRouteWhereCurrentIsUnavailable())
         let started = Date()
-        let result = try await RewriteDispatcher.shared.generateGrammar("Tomorrow I wont make it to dinner sorry maybe sunday?")
+        let result = try await RewriteDispatcher.shared.generate("Tomorrow I wont make it to dinner sorry maybe sunday?",
+            customInstruction: "fix grammar", route: .auto, images: [])
         print("live local model \(model): \(Int(Date().timeIntervalSince(started)))s -> \(result.text)")
         XCTAssertEqual(result.provider, .lmStudio)
         XCTAssertEqual(result.model, model)

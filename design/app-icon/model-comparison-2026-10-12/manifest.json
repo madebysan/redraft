@@ -1,0 +1,512 @@
+[
+  {
+    "prompt_id": "d1-binary-star",
+    "prompt_sha256_12": "f3d12e7bcdf7",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "18A-dark-premium-glow.png",
+      "18B-dark-premium-glow.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "file": "d1-binary-star__nano-banana-pro.png",
+    "reused": "smoke test, identical prompt and settings",
+    "seconds": null
+  },
+  {
+    "prompt_id": "d1-binary-star",
+    "prompt_sha256_12": "f3d12e7bcdf7",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "18A-dark-premium-glow.png",
+      "18B-dark-premium-glow.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 40,
+    "error": null,
+    "file": "d1-binary-star__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d1-binary-star",
+    "prompt_sha256_12": "f3d12e7bcdf7",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "18A-dark-premium-glow.png",
+      "18B-dark-premium-glow.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 50,
+    "error": null,
+    "file": "d1-binary-star__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d1-binary-star",
+    "prompt_sha256_12": "f3d12e7bcdf7",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "18A-dark-premium-glow.png",
+      "18B-dark-premium-glow.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 50,
+    "error": null,
+    "file": "d1-binary-star__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d1-binary-star",
+    "prompt_sha256_12": "f3d12e7bcdf7",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "18A-dark-premium-glow.png",
+      "18B-dark-premium-glow.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 40,
+    "error": null,
+    "file": "d1-binary-star__seedream-v4-5.jpg"
+  },
+  {
+    "prompt_id": "d2-correction-tape",
+    "prompt_sha256_12": "53f660fc1f2b",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "01A-tactile-object.png",
+      "01B-tactile-object.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "file": "d2-correction-tape__nano-banana-pro.png",
+    "reused": "smoke test, identical prompt and settings",
+    "seconds": null
+  },
+  {
+    "prompt_id": "d2-correction-tape",
+    "prompt_sha256_12": "53f660fc1f2b",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "01A-tactile-object.png",
+      "01B-tactile-object.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 51,
+    "error": null,
+    "file": "d2-correction-tape__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d2-correction-tape",
+    "prompt_sha256_12": "53f660fc1f2b",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "01A-tactile-object.png",
+      "01B-tactile-object.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 55,
+    "error": null,
+    "file": "d2-correction-tape__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d2-correction-tape",
+    "prompt_sha256_12": "53f660fc1f2b",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "01A-tactile-object.png",
+      "01B-tactile-object.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 91,
+    "error": null,
+    "file": "d2-correction-tape__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d2-correction-tape",
+    "prompt_sha256_12": "53f660fc1f2b",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "01A-tactile-object.png",
+      "01B-tactile-object.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 55,
+    "error": null,
+    "file": "d2-correction-tape__seedream-v4-5.jpg"
+  },
+  {
+    "prompt_id": "d4-glass-capsule",
+    "prompt_sha256_12": "828a21b00553",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "20A-frosted-glass.png",
+      "20B-frosted-glass.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "file": "d4-glass-capsule__nano-banana-pro.png",
+    "reused": "smoke test, identical prompt and settings",
+    "seconds": null
+  },
+  {
+    "prompt_id": "d4-glass-capsule",
+    "prompt_sha256_12": "828a21b00553",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "20A-frosted-glass.png",
+      "20B-frosted-glass.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 40,
+    "error": null,
+    "file": "d4-glass-capsule__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d4-glass-capsule",
+    "prompt_sha256_12": "828a21b00553",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "20A-frosted-glass.png",
+      "20B-frosted-glass.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 55,
+    "error": null,
+    "file": "d4-glass-capsule__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d4-glass-capsule",
+    "prompt_sha256_12": "828a21b00553",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "20A-frosted-glass.png",
+      "20B-frosted-glass.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 55,
+    "error": null,
+    "file": "d4-glass-capsule__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d4-glass-capsule",
+    "prompt_sha256_12": "828a21b00553",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "20A-frosted-glass.png",
+      "20B-frosted-glass.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 40,
+    "error": null,
+    "file": "d4-glass-capsule__seedream-v4-5.jpg"
+  },
+  {
+    "prompt_id": "d7-clay-bird",
+    "prompt_sha256_12": "59f75e1fafd4",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "23A-soft-clay-3d.jpg",
+      "23B-soft-clay-3d.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "file": "d7-clay-bird__nano-banana-pro.png",
+    "reused": "smoke test, identical prompt and settings",
+    "seconds": null
+  },
+  {
+    "prompt_id": "d7-clay-bird",
+    "prompt_sha256_12": "59f75e1fafd4",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "23A-soft-clay-3d.jpg",
+      "23B-soft-clay-3d.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 24,
+    "error": null,
+    "file": "d7-clay-bird__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d7-clay-bird",
+    "prompt_sha256_12": "59f75e1fafd4",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "23A-soft-clay-3d.jpg",
+      "23B-soft-clay-3d.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 50,
+    "error": null,
+    "file": "d7-clay-bird__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d7-clay-bird",
+    "prompt_sha256_12": "59f75e1fafd4",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "23A-soft-clay-3d.jpg",
+      "23B-soft-clay-3d.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 86,
+    "error": null,
+    "file": "d7-clay-bird__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d7-clay-bird",
+    "prompt_sha256_12": "59f75e1fafd4",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "23A-soft-clay-3d.jpg",
+      "23B-soft-clay-3d.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 34,
+    "error": null,
+    "file": "d7-clay-bird__seedream-v4-5.jpg"
+  },
+  {
+    "prompt_id": "d8-night-desk",
+    "prompt_sha256_12": "52da7410d2f5",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "26A-illustrated-scene.png",
+      "26B-illustrated-scene.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "file": "d8-night-desk__nano-banana-pro.png",
+    "reused": "smoke test, identical prompt and settings",
+    "seconds": null
+  },
+  {
+    "prompt_id": "d8-night-desk",
+    "prompt_sha256_12": "52da7410d2f5",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "26A-illustrated-scene.png",
+      "26B-illustrated-scene.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 24,
+    "error": null,
+    "file": "d8-night-desk__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d8-night-desk",
+    "prompt_sha256_12": "52da7410d2f5",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "26A-illustrated-scene.png",
+      "26B-illustrated-scene.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 55,
+    "error": null,
+    "file": "d8-night-desk__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d8-night-desk",
+    "prompt_sha256_12": "52da7410d2f5",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "26A-illustrated-scene.png",
+      "26B-illustrated-scene.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 62,
+    "error": null,
+    "file": "d8-night-desk__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d8-night-desk",
+    "prompt_sha256_12": "52da7410d2f5",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "26A-illustrated-scene.png",
+      "26B-illustrated-scene.png"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 55,
+    "error": null,
+    "file": "d8-night-desk__seedream-v4-5.jpg"
+  },
+  {
+    "prompt_id": "d9-bauhaus-c",
+    "prompt_sha256_12": "60c00a48ca6d",
+    "model": "nano-banana-pro",
+    "label": "Nano Banana Pro",
+    "resolution": "2K",
+    "references": [
+      "08A-bauhaus-geometric.png",
+      "08B-bauhaus-geometric.jpg"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 35,
+    "error": null,
+    "file": "d9-bauhaus-c__nano-banana-pro.png"
+  },
+  {
+    "prompt_id": "d9-bauhaus-c",
+    "prompt_sha256_12": "60c00a48ca6d",
+    "model": "nano-banana-pro-flash",
+    "label": "Nano Banana Pro Flash",
+    "resolution": "2K",
+    "references": [
+      "08A-bauhaus-geometric.png",
+      "08B-bauhaus-geometric.jpg"
+    ],
+    "aspect": "1:1",
+    "reference_text": "Style reference only: copy the rendering, material, lighting and palette, not the subject.",
+    "credits_estimate": 75,
+    "seconds": 24,
+    "error": null,
+    "file": "d9-bauhaus-c__nano-banana-pro-flash.png"
+  },
+  {
+    "prompt_id": "d9-bauhaus-c",
+    "prompt_sha256_12": "60c00a48ca6d",
+    "model": "seedream-v5-pro",
+    "label": "Seedream 5 Pro",
+    "resolution": "2k",
+    "references": [
+      "08A-bauhaus-geometric.png",
+      "08B-bauhaus-geometric.jpg"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 150,
+    "seconds": 49,
+    "error": null,
+    "file": "d9-bauhaus-c__seedream-v5-pro.jpg"
+  },
+  {
+    "prompt_id": "d9-bauhaus-c",
+    "prompt_sha256_12": "60c00a48ca6d",
+    "model": "seedream-v5-lite",
+    "label": "Seedream 5 Lite",
+    "resolution": null,
+    "references": [
+      "08A-bauhaus-geometric.png",
+      "08B-bauhaus-geometric.jpg"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 44,
+    "error": null,
+    "file": "d9-bauhaus-c__seedream-v5-lite.jpg"
+  },
+  {
+    "prompt_id": "d9-bauhaus-c",
+    "prompt_sha256_12": "60c00a48ca6d",
+    "model": "seedream-v4-5",
+    "label": "Seedream 4.5",
+    "resolution": null,
+    "references": [
+      "08A-bauhaus-geometric.png",
+      "08B-bauhaus-geometric.jpg"
+    ],
+    "aspect": "1:1",
+    "reference_text": null,
+    "credits_estimate": 50,
+    "seconds": 44,
+    "error": null,
+    "file": "d9-bauhaus-c__seedream-v4-5.jpg"
+  }
+]

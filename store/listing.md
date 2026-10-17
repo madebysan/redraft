@@ -24,7 +24,7 @@ Select text in any Mac app, press ⌘⇧E, and say how to change it. Fix grammar
 
 Redraft rewrites selected text right where you write: Mail, Notes, Pages, Slack, your browser.
 
-Select text and press ⌘⇧E. Fix grammar with one key, or type an instruction: "make this warmer," "translate to Spanish," "summarize in three bullets." The result replaces your selection, and your app's normal Undo brings the original back. With nothing selected, Redraft writes new text at the cursor.
+Select text and press ⌘⇧E. Type what should change: "fix grammar," "make this warmer," "translate to Spanish," "summarize in three bullets." The result replaces your selection, and your app's normal Undo brings the original back. With nothing selected, Redraft writes new text at the cursor.
 
 Bring your own model
 • Local: run a model on your Mac with LM Studio. Nothing leaves your Mac.

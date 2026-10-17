@@ -7,15 +7,13 @@ import Carbon.HIToolbox
 final class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate {
     static let shared = CommandPaletteWindowController()
 
-    private enum Mode { case actions, instruction, loading, success, error }
+    private enum Mode { case instruction, loading, success, error }
     private let inset: CGFloat = 10
-    private var mode: Mode = .actions
+    private var mode: Mode = .instruction
     private var selectedText = ""
     private var instructionDraft = ""
     private var errorMessage = ""
     private var inputField: NSTextField?
-    private var actionButtons: [NSButton] = []
-    private var selectedAction = 0
     private var spinner: NSProgressIndicator?
     private var dismissalTask: Task<Void, Never>?
     private var keyMonitor: Any?
@@ -57,13 +55,10 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
 
     deinit { NotificationCenter.default.removeObserver(self) }
 
-    func show(selectedText: String, anchorRect: CGRect? = nil, defaultView: UserSettings.PaletteDefaultView? = nil) {
+    func show(selectedText: String, anchorRect: CGRect? = nil) {
         self.selectedText = selectedText
         instructionDraft = ""
-        switch defaultView ?? UserSettings.shared.paletteDefaultView {
-        case .icons: showActions()
-        case .instruction: openInstruction()
-        }
+        openInstruction()
         position(anchorRect: anchorRect)
         presentOverlay()
     }
@@ -77,35 +72,13 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         installMonitors()
     }
 
-    private func showActions() {
-        mode = .actions
-        selectedAction = 0
-        let content = installSurface(size: NSSize(width: 80, height: 36), animated: false)
-        let grammar = button("text.badge.checkmark", label: "Fix Grammar (Return)",
-            frame: NSRect(x: 4, y: 0, width: 36, height: 36), action: #selector(fixGrammar))
-        let instruction = button("pencil", label: "Write an instruction (Tab)",
-            frame: NSRect(x: 40, y: 0, width: 36, height: 36), action: #selector(openInstruction))
-        content.addSubview(grammar)
-        content.addSubview(instruction)
-        actionButtons = [grammar, instruction]
-        window?.makeFirstResponder(grammar)
-    }
-
-    @objc private func fixGrammar() {
-        guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            openInstruction()
-            return
-        }
-        TextGrabber.shared.runFixGrammar()
-    }
-
     @objc private func openInstruction() {
         mode = .instruction
         let content = installSurface(size: NSSize(width: 320, height: 40))
         let field = NSTextField(frame: NSRect(x: 18, y: 9, width: 252, height: 22))
         field.font = .systemFont(ofSize: 14)
         field.stringValue = instructionDraft
-        field.placeholderString = selectedText.isEmpty ? "Write something…" : "Return fixes grammar · or type edits"
+        field.placeholderString = selectedText.isEmpty ? "Write something…" : "What should change?"
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -117,19 +90,15 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         field.action = #selector(runInstruction)
         field.delegate = self
         content.addSubview(field)
-        content.addSubview(button("arrow.up", label: "Run (Return). Empty runs Fix Grammar",
+        content.addSubview(button("arrow.up", label: "Run (Return)",
             frame: NSRect(x: 280, y: 4, width: 32, height: 32), action: #selector(runInstruction)))
         inputField = field
         window?.makeFirstResponder(field)
     }
 
     @objc private func runInstruction() {
-        let instruction = inputField?.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if instruction.isEmpty {
-            // Nothing typed: with a selection, Return is the one-key Fix Grammar.
-            if selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { NSSound.beep() } else { fixGrammar() }
-            return
-        }
+        guard let instruction = inputField?.stringValue.trimmingCharacters(in: .whitespacesAndNewlines),
+              !instruction.isEmpty else { NSSound.beep(); return }
         instructionDraft = instruction
         TextGrabber.shared.runCustomInstruction(instruction)
     }
@@ -243,14 +212,13 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
 
     @objc private func appDidResignActive() {
         guard Bundle.main.bundleIdentifier?.hasSuffix(".preview") != true else { return }
-        guard mode == .actions || mode == .instruction else { return }
+        guard mode == .instruction else { return }
         // Activating a floating control can briefly transfer focus on mouse-down.
         // Let that click reach the button; actual outside clicks are handled below.
         if NSEvent.pressedMouseButtons != 0,
            window?.frame.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation) == true { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self, !NSApp.isActive,
-                  self.mode == .actions || self.mode == .instruction else { return }
+            guard let self, !NSApp.isActive, self.mode == .instruction else { return }
             self.close()
         }
     }
@@ -262,7 +230,6 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
         spinner = nil
         inputField = nil
         errorButton = nil
-        actionButtons = []
         errorPopover?.close()
         errorPopover = nil
         guard let window else { return NSView() }
@@ -384,25 +351,11 @@ final class CommandPaletteWindowController: NSWindowController, NSTextFieldDeleg
             return true
         }
         if event.keyCode == kVK_Escape {
-            if mode == .instruction { showActions() } else { close() }
+            close()
             return true
         }
         if flags == .command && event.keyCode == kVK_ANSI_Comma { openSettings(); return true }
-        guard mode == .actions || mode == .instruction else { return false }
-        if flags == .command && event.keyCode == kVK_ANSI_1 { fixGrammar(); return true }
-        if flags == .command && event.keyCode == kVK_ANSI_2 { openInstruction(); return true }
-        guard mode == .actions, flags.isEmpty else { return false }
-        switch Int(event.keyCode) {
-        case kVK_Return, kVK_ANSI_KeypadEnter:
-            selectedAction == 0 ? fixGrammar() : openInstruction()
-        case kVK_Tab:
-            openInstruction()
-        case kVK_LeftArrow, kVK_RightArrow:
-            selectedAction = event.keyCode == kVK_LeftArrow ? 0 : 1
-            if actionButtons.indices.contains(selectedAction) { window?.makeFirstResponder(actionButtons[selectedAction]) }
-        default: return false
-        }
-        return true
+        return false
     }
 
     private func removeMonitors() {

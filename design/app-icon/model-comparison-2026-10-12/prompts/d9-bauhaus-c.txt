@@ -1,0 +1,7 @@
+App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
+Subject: a bold Bauhaus composition: a large orange disc with a wedge cut out on the right so it forms a letter C, and a small solid near-black circle sitting inside the cut-out, as if the small circle were the big one's companion. Centered, filling about 70% of the canvas.
+Background: warm off-white #F4EDE4, plain, with no pattern, doodles or props.
+Style: Bauhaus geometry, circles, squares, triangles, flat primary colors, no gradients, hard edges. Palette: orange #FF6B3D, near-black #111111, off-white.
+Bold, simple silhouette that stays readable at small sizes.
+No text. No UI screenshots, no logos, no device mockups.
+The reference images define rendering, material, lighting and palette only. Do not copy their subjects.

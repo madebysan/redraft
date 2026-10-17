@@ -29,18 +29,6 @@ final class RewriteDispatcher {
         }
     }
 
-    // Fix Grammar is a preset instruction through the same path as anything typed in the Capsule.
-    static let grammarInstruction = "Fix grammar, spelling, and punctuation. Keep the tone, style, and meaning. Do not add or remove information."
-
-    // The Capsule and macOS Services share this preset and the single configured model.
-    func generateGrammar(_ text: String) async throws -> GenerationResult {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw DispatchError.emptySelectionForAction("Fix Grammar")
-        }
-        if let error = UserSettings.shared.writingMigrationError { throw DispatchError.noProviderAvailable(error) }
-        return try await generate(text, customInstruction: Self.grammarInstruction, route: .auto, images: [])
-    }
-
     func rewrite(_ text: String, customInstruction: String) async throws -> String {
         try await generate(text, customInstruction: customInstruction, route: .auto, images: []).text
     }

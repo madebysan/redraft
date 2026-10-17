@@ -9,10 +9,8 @@ final class FirstRunTests: XCTestCase {
         let fresh = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(fresh.modelRoute(for: fresh.customPromptRouteID!)?.model, "google/gemini-3.5-flash-lite")
         fresh.customPromptRouteID = UserSettings.recommendedWritingRoute.id
-        fresh.paletteDefaultView = .instruction
         let upgraded = UserSettings(defaults: defaults, credentials: credentials)
         XCTAssertEqual(upgraded.customPromptRouteID, UserSettings.recommendedWritingRoute.id)
-        XCTAssertEqual(upgraded.paletteDefaultView, .instruction)
     }
 
     @MainActor

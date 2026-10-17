@@ -52,23 +52,6 @@ final class UserSettings {
         }
     }
 
-    enum PaletteDefaultView: String, CaseIterable {
-        case icons
-        case instruction
-
-        var title: String {
-            switch self {
-            case .icons: return "Action icons"
-            case .instruction: return "Instruction field"
-            }
-        }
-    }
-
-    var paletteDefaultView: PaletteDefaultView {
-        get { PaletteDefaultView(rawValue: defaults.string(forKey: "paletteDefaultView") ?? "") ?? .icons }
-        set { defaults.set(newValue.rawValue, forKey: "paletteDefaultView") }
-    }
-
     // Which kind of model runs the Capsule: a local server on this Mac, or a cloud provider.
     enum ModelMode: String, CaseIterable {
         case local

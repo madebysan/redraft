@@ -5,7 +5,7 @@
 <p>Writing Tools for every Mac, including Intel and macOS 13.<br>
 Select text in any app, type what to change, and it's replaced in place.</p>
 
-<p><strong>Version 0.5.3</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.5.4</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
@@ -15,11 +15,11 @@ Select text in any app, type what to change, and it's replaced in place.</p>
 
 <p><a href="https://github.com/madebysan/redraft/releases/latest">Download Redraft</a></p>
 
-![Redraft's capsule with its two choices, fix grammar and type an instruction](assets/screenshots/capsule.png)
+![Redraft's capsule: one field that asks what should change](assets/screenshots/capsule.png)
 
 Redraft is a menu bar app for fixing grammar, rewriting, translating and summarizing text where you already write, with no chat window to copy back from.
 
-- Press `⌘⇧E` on a selection, then fix grammar or type an instruction like "make this warmer".
+- Press `⌘⇧E` on a selection, then type what should change: "fix grammar", "make this warmer", "translate to Spanish".
 - The result replaces your text, and your editor's `⌘Z` undoes it.
 - Use your own cloud key or a local model through LM Studio.
 
