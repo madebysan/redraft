@@ -44,7 +44,7 @@ final class RewriteDispatcher {
         let defaultRoute = settings.customPromptRouteID.flatMap { settings.modelRoute(for: $0) }
             ?? settings.defaultModelRoute(for: settings.customPromptProvider)
         guard let resolvedRoute = route.routeOverride ?? defaultRoute else {
-            throw DispatchError.noProviderAvailable("Choose a model in Settings → Models.")
+            throw DispatchError.noProviderAvailable("Choose a model in Settings.")
         }
         return try await generate(
             prompt.userText,
@@ -91,10 +91,10 @@ final class RewriteDispatcher {
     ) async throws -> GenerationResult {
         let settings = UserSettings.shared
         if webSearch && route.provider != .openRouter {
-            throw DispatchError.noProviderAvailable("Web search requires an OpenRouter model. Choose one in Settings → Models.")
+            throw DispatchError.noProviderAvailable("Web search requires an OpenRouter model. Choose one in Settings.")
         }
         guard settings.hasAccess(to: route.provider) else {
-            throw DispatchError.noProviderAvailable("Add a \(route.provider.shortLabel) API key in Settings → Models or choose another provider.")
+            throw DispatchError.noProviderAvailable("Add a \(route.provider.shortLabel) API key in Settings or choose another provider.")
         }
         #if APP_STORE
         guard settings.hasCloudConsent(for: route.provider) else {
@@ -182,7 +182,7 @@ final class RewriteDispatcher {
         guard !images.isEmpty else { return }
         guard route.supportsImages else {
             throw DispatchError.imageUnsupported(
-                "\(route.displayModel) cannot read images. Choose a model marked Images in Settings → Models."
+                "\(route.displayModel) cannot read images. Choose a model marked Images in Settings."
             )
         }
     }

@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var onboardingWindow: OnboardingWindow?
     private var settingsWindow: SettingsWindow?
+    private var historyWindow: HistoryWindow?
     private var aboutWindow: NSWindow?
     private var permissionTimer: Timer?
     private var wasPermissionsOK = false
@@ -189,15 +190,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let arguments = ProcessInfo.processInfo.arguments
         guard arguments.contains("--settings-preview") else { return }
 
-        let pane = arguments
-            .first(where: { $0.hasPrefix("--settings-pane=") })?
-            .replacingOccurrences(of: "--settings-pane=", with: "")
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.openSettings()
-            if let pane {
-                self.settingsWindow?.selectPane(named: pane)
-            }
         }
     }
 
@@ -210,19 +204,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func openSettingsPane(named pane: String) {
-        openSettings()
-        settingsWindow?.selectPane(named: pane)
-    }
-
-    @objc func openModelsSettings() {
-        openSettingsPane(named: "Models")
+    @objc func openHistory() {
+        if historyWindow == nil {
+            historyWindow = HistoryWindow()
+        }
+        historyWindow?.showWindow(nil)
+        historyWindow?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func openAbout() {
         if aboutWindow == nil {
             aboutWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
+                contentRect: NSRect(x: 0, y: 0, width: 300, height: 224),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
@@ -236,11 +230,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Icon
             let iconView = NSImageView(frame: .zero)
             iconView.translatesAutoresizingMaskIntoConstraints = false
-            if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Redraft") {
-                let config = NSImage.SymbolConfiguration(pointSize: 36, weight: .light)
-                iconView.image = image.withSymbolConfiguration(config)
-                iconView.contentTintColor = .controlAccentColor
-            }
+            iconView.image = NSApp.applicationIconImage   // the real app icon, from AppIcon.icns
+            iconView.imageScaling = .scaleProportionallyUpOrDown
+            iconView.setAccessibilityLabel("Redraft")
             contentView.addSubview(iconView)
 
             // Title
@@ -259,7 +251,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             contentView.addSubview(versionLabel)
 
             // Description
-            let descLabel = NSTextField(labelWithString: "Run saved or custom AI actions on selected text.")
+            let descLabel = NSTextField(labelWithString: "Select text. Say what you want changed.")
             descLabel.translatesAutoresizingMaskIntoConstraints = false
             descLabel.font = .systemFont(ofSize: 12)
             descLabel.textColor = .secondaryLabelColor
@@ -295,8 +287,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLayoutConstraint.activate([
                 iconView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
                 iconView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
-                iconView.widthAnchor.constraint(equalToConstant: 48),
-                iconView.heightAnchor.constraint(equalToConstant: 48),
+                iconView.widthAnchor.constraint(equalToConstant: 72),
+                iconView.heightAnchor.constraint(equalToConstant: 72),
 
                 titleLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
                 titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 8),

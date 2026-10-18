@@ -45,7 +45,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         // What the next rewrite will use. Click to change it.
         setupMenuItem = NSMenuItem(title: "Using: \(UserSettings.shared.setupSummary)",
-            action: #selector(AppDelegate.openModelsSettings), keyEquivalent: "")
+            action: #selector(AppDelegate.openSettings), keyEquivalent: "")
         setupMenuItem?.target = appDelegate
         setupMenuItem?.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         setupMenuItem?.image?.isTemplate = true
@@ -60,6 +60,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         settingsItem.target = appDelegate
         menu.addItem(settingsItem)
+
+        let historyItem = NSMenuItem(title: "History...", action: #selector(AppDelegate.openHistory), keyEquivalent: "")
+        historyItem.target = appDelegate
+        menu.addItem(historyItem)
 
         let aboutItem = NSMenuItem(
             title: "About Redraft",

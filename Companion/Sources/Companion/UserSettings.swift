@@ -183,6 +183,7 @@ final class UserSettings {
         static let falModelSupportsImages = "falModelSupportsImages"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let launchAtLogin = "launchAtLogin"
+        static let saveHistory = "saveHistory"
         static let shortcutKeyCode = "shortcutKeyCode"
         static let shortcutModifiers = "shortcutModifiers"
         static let lmStudioBaseURL = "lmStudioBaseURL"
@@ -1015,6 +1016,12 @@ final class UserSettings {
     var launchAtLogin: Bool {
         get { defaults.bool(forKey: Keys.launchAtLogin) }
         set { defaults.set(newValue, forKey: Keys.launchAtLogin) }
+    }
+
+    // On by default so existing installs keep saving; off stops new entries and keeps old ones.
+    var saveHistory: Bool {
+        get { defaults.object(forKey: Keys.saveHistory) == nil ? true : defaults.bool(forKey: Keys.saveHistory) }
+        set { defaults.set(newValue, forKey: Keys.saveHistory) }
     }
 
     // Store custom shortcut key code (nil = use default Cmd+Shift+E)

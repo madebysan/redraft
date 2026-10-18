@@ -263,7 +263,7 @@ final class TextGrabber {
                         } else {
                             self.cancelPaletteSession()
                             CommandPaletteWindowController.shared.showError(
-                                "Nothing was sent. To keep text on this Mac, choose Local in Settings → Models."
+                                "Nothing was sent. To keep text on this Mac, choose Local in Settings."
                             )
                         }
                         return
@@ -301,7 +301,7 @@ final class TextGrabber {
             to that text. If you add "use web search", it also searches the web for you.
 
             Redraft has no server and collects nothing. Results stay in History on this Mac. \
-            You can switch to a local model in Settings → Models at any time.
+            You can switch to a local model in Settings at any time.
             """
         alert.addButton(withTitle: "Allow")
         alert.addButton(withTitle: "Don't Allow")
@@ -313,6 +313,7 @@ final class TextGrabber {
     private func recordHistory(result: String, actionLabel: String, provider: UserSettings.Provider,
         model: String, selectedWordCount: Int, imageFileNames: [String], requestDurationSeconds: Double,
         sources: [WebSource], usedWebSearch: Bool) {
+        guard UserSettings.shared.saveHistory else { return }
         Task {
             do {
                 try await GenerationHistoryStore.shared.add(result: result, actionLabel: actionLabel,

@@ -13,7 +13,7 @@ To test it:
 6. With a cloud key, the first time Redraft asks before sending text to that provider (guideline 5.1.2(i)). Click Allow.
 7. The selection is replaced. ⌘Z in TextEdit undoes it. History is in the menu bar menu → Settings... → History.
 
-Without a model or key, steps 2–4 still work and the panel explains that a model must be chosen in Settings → Models.
+Without a model or key, steps 2–4 still work and the panel explains that a model must be chosen in Settings.
 
 Why keystrokes: the app's only job is to replace text the user selected, at the user's request. Copy and paste are the only sandbox-compatible way to read and replace a selection in another app. Before pasting, Redraft copies again to confirm the same text is still selected; if not, it leaves the document alone and puts the result on the clipboard.
 

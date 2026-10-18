@@ -18,7 +18,7 @@ Search adds cost and delay, and sends context to a search provider. Review impor
 
 ## Bring your own model
 
-Pick Local or Cloud in Settings → Models. Local runs a model on your Mac through LM Studio. Cloud uses one provider, one API key and one model; the recommended choice is Gemini Flash Lite through OpenRouter.
+Pick Local or Cloud at the top of Settings. Local runs a model on your Mac through LM Studio. Cloud uses one provider, one API key and one model; the recommended choice is Gemini Flash Lite through OpenRouter.
 
 Keys live in macOS Keychain. No Redraft backend or analytics. Cloud usage is billed separately; results and history stay saved on your Mac.
 

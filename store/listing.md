@@ -57,5 +57,5 @@ Mac sizes: 2880 × 1800 (or 1440 × 900, 2560 × 1600, 1280 × 800). 3 to 5, rea
 1. The Capsule next to selected text in Mail or Notes.
 2. Typing an instruction ("make this warmer").
 3. The replaced text in place.
-4. Settings → Models: Local or Cloud.
+4. Settings: Local or Cloud at the top.
 5. History with web-search sources.

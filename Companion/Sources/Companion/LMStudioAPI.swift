@@ -29,7 +29,7 @@ final class LMStudioAPI {
         var errorDescription: String? {
             switch self {
             case .invalidURL(let url):
-                return "“\(url)” isn't a usable server address. Use something like http://127.0.0.1:1234 in Settings → Models."
+                return "“\(url)” isn't a usable server address. Use something like http://127.0.0.1:1234 in Settings."
             case .notReachable(let url, let detail):
                 return "Couldn't connect to the local server at \(url). Check that LM Studio's server is running and the address is right. (\(detail))"
             case .timedOut(let url, let seconds):
@@ -37,9 +37,9 @@ final class LMStudioAPI {
             case .insecureHostBlocked(let url):
                 return "macOS blocked the plain http connection to \(url). Use the server's IP address or a .local name, or enable https on the server."
             case .noModelConfigured:
-                return "No local model selected. Pick one in Settings → Models."
+                return "No local model selected. Pick one in Settings."
             case .modelNotFound(let model):
-                return "The local server has no model named “\(model)”. In Settings → Models, click Refresh and pick one of the listed models."
+                return "The local server has no model named “\(model)”. In Settings, click Refresh and pick one of the listed models."
             case .requestFailed(let msg):
                 return "Local server request failed: \(msg)"
             case .invalidResponse:

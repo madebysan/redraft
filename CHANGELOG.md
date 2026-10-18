@@ -2,6 +2,15 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.5] - 2026-10-18
+
+### Changed
+
+- Settings is one page. The sidebar and the General, History, Shortcut and Permissions pages are gone. Local or Cloud stays at the top; the shortcut, Launch at login and a new "Keep a history of results on this Mac" switch sit below it. Version and credits live in About. An Accessibility warning shows only while the permission is missing.
+- The OpenRouter catalog is a menu grouped by vendor instead of a 470-row table with a search field. The API key is checked automatically after typing; the Check key button is gone. Image input and the server address for local models sit behind More options.
+- History opens in its own window from Settings or the menu bar. Turning the history switch off stops saving new results and keeps the old ones until Clear.
+- About shows the real app icon and a current tagline.
+
 ## [0.5.4] - 2026-10-17
 
 ### Added

@@ -51,7 +51,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
 
         let descLabel = NSTextField(wrappingLabelWithString:
             "Select text, press the shortcut, and type what should change.\n\n" +
-            "Choose where the model runs. You can change this any time in Settings → Models."
+            "Choose where the model runs. You can change this any time in Settings."
         )
         descLabel.translatesAutoresizingMaskIntoConstraints = false
         descLabel.font = .systemFont(ofSize: 13)
@@ -270,8 +270,8 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             settings.modelMode = .local
             settings.hasCompletedOnboarding = true
             close()
-            // The local model list loads in Settings → Models; open it so the first run finishes there.
-            (NSApp.delegate as? AppDelegate)?.openSettingsPane(named: "Models")
+            // The local model list loads in Settings; open it so the first run finishes there.
+            (NSApp.delegate as? AppDelegate)?.openSettings()
             return
         }
 
@@ -303,7 +303,7 @@ final class OnboardingWindow: NSWindowController, NSTextFieldDelegate {
             case .openRouter:
                 apiHintLabel.stringValue = "Starts with the tested model, Gemini Flash Lite. DeepSeek Flash is kept as the fallback for local models."
             default:
-                apiHintLabel.stringValue = "Uses \(ModelsSettingsPane.directModelDefault(provider)). Change the model later in Settings → Models."
+                apiHintLabel.stringValue = "Uses \(ModelsSettingsPane.directModelDefault(provider)). Change the model later in Settings."
             }
         }
         updateGetStartedState()

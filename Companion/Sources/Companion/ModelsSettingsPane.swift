@@ -1,9 +1,9 @@
 import AppKit
 
-// Settings → Models: one switch between Local and Cloud, and only that branch's controls.
+// The model block of Settings: one switch between Local and Cloud, and only that branch's controls.
 @MainActor
-final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSource, NSTableViewDelegate {
-    let view: NSView
+final class ModelsSettingsPane: NSObject, NSTextFieldDelegate {
+    let view: NSStackView
 
     private let settings = UserSettings.shared
     private var modeControl: NSSegmentedControl!
@@ -18,48 +18,38 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
     private var localVisionCheckbox: NSButton!
     private var fallbackCheckbox: NSButton!
     private var fallbackHelp: NSTextField!
-    private var advancedButton: NSButton!
-    private var serverRow: NSView!
+    private var moreButton: NSButton!
+    private var moreStack: NSStackView!
     private var serverField: NSTextField!
 
     // Cloud
     private var providerPopup: NSPopUpButton!
     private var keyField: NSSecureTextField!
-    private var checkKeyButton: NSButton!
     private var keyLinkButton: NSButton!
     private var keyStatusLabel: NSTextField!
+    private var keyCheckTask: Task<Void, Never>?
     private var openRouterModelRow: NSView!
     private var openRouterPopup: NSPopUpButton!
-    private var catalogRow: NSView!
-    private var catalogFilterField: NSTextField!
-    private var catalogRefreshButton: NSButton!
-    private var catalogTable: NSTableView!
-    private var catalogScroll: NSScrollView!
     private var catalogStatusLabel: NSTextField!
     private var directModelRow: NSView!
     private var directModelField: NSTextField!
-    private var cloudSummaryLabel: NSTextField!
 
     private var catalogModels: [UserSettings.RemoteCatalogModel] = []
-    private var visibleCatalogModels: [UserSettings.RemoteCatalogModel] = []
     private var isLoadingCatalog = false
     private var isLoadingLocalModels = false
-    private var isSelectingCatalogRow = false
 
     private let labelWidth: CGFloat = 110
     private static let recommendedTitle = "Recommended · Gemini Flash Lite"
 
     override init() {
-        let scrollView = NSScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.drawsBackground = false
-        scrollView.borderType = .noBorder
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-        view = scrollView
+        let stack = NSStackView()
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.orientation = .vertical
+        stack.alignment = .width
+        stack.spacing = 16
+        view = stack
         super.init()
-        build(in: scrollView)
+        build(in: stack)
         catalogModels = settings.remoteCatalogModels
         syncFromSettings()
     }
@@ -76,26 +66,7 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
 
     // MARK: Layout
 
-    private func build(in scrollView: NSScrollView) {
-        let container = FlippedModelsDocumentView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = container
-
-        let stack = NSStackView()
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.orientation = .vertical
-        stack.alignment = .width
-        stack.spacing = 16
-        container.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
-            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 20),
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 22),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -22),
-            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -20),
-        ])
-
+    private func build(in stack: NSStackView) {
         modeControl = NSSegmentedControl(labels: UserSettings.ModelMode.allCases.map(\.title),
             trackingMode: .selectOne, target: self, action: #selector(modeChanged))
         modeControl.segmentStyle = .rounded
@@ -148,24 +119,26 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         localModelPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
         section.addArrangedSubview(makeRow(label: "Model", control: localModelPopup))
 
-        localVisionCheckbox = NSButton(checkboxWithTitle: "This model can read images", target: self, action: #selector(toggleLocalVision))
-        section.addArrangedSubview(localVisionCheckbox)
-
         fallbackCheckbox = NSButton(checkboxWithTitle: "If the local model fails, use the cloud model", target: self, action: #selector(toggleFallback))
-        section.addArrangedSubview(fallbackCheckbox)
+        section.addArrangedSubview(makeRow(label: "", control: fallbackCheckbox))
         fallbackHelp = makeHelp("")
-        section.addArrangedSubview(fallbackHelp)
+        section.addArrangedSubview(makeRow(label: "", control: fallbackHelp))
 
-        advancedButton = makeLink("Advanced", action: #selector(toggleAdvanced))
-        section.addArrangedSubview(advancedButton)
+        moreButton = makeLink("More options", action: #selector(toggleMore))
+        section.addArrangedSubview(makeRow(label: "", control: moreButton))
 
+        localVisionCheckbox = NSButton(checkboxWithTitle: "This model can read images", target: self, action: #selector(toggleLocalVision))
         serverField = makeTextField(value: settings.lmStudioBaseURL, placeholder: UserSettings.defaultLMStudioBaseURL, monospaced: true)
         serverField.delegate = self
         serverField.target = self
         serverField.action = #selector(serverChanged)
-        serverRow = makeRow(label: "Server address", control: serverField)
-        section.addArrangedSubview(serverRow)
-        serverRow.isHidden = settings.lmStudioBaseURL == UserSettings.defaultLMStudioBaseURL
+        moreStack = NSStackView(views: [makeRow(label: "", control: localVisionCheckbox), makeRow(label: "Server address", control: serverField)])
+        moreStack.orientation = .vertical
+        moreStack.alignment = .leading
+        moreStack.spacing = 10
+        section.addArrangedSubview(moreStack)
+        moreStack.isHidden = settings.lmStudioBaseURL == UserSettings.defaultLMStudioBaseURL
+        moreButton.title = moreStack.isHidden ? "More options" : "Fewer options"
     }
 
     private func buildCloud(_ section: NSStackView) {
@@ -183,12 +156,7 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         keyField.delegate = self
         keyField.target = self
         keyField.action = #selector(keyChanged)
-        checkKeyButton = makeButton("Check key", action: #selector(checkKey))
-        let keyControl = NSStackView(views: [keyField, checkKeyButton])
-        keyControl.orientation = .horizontal
-        keyControl.alignment = .centerY
-        keyControl.spacing = 8
-        section.addArrangedSubview(makeRow(label: "API key", control: keyControl))
+        section.addArrangedSubview(makeRow(label: "API key", control: keyField))
 
         keyLinkButton = makeLink("Get a key", action: #selector(openKeyPage))
         keyStatusLabel = makeHelp("")
@@ -202,44 +170,11 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         openRouterPopup.target = self
         openRouterPopup.action = #selector(openRouterPopupChanged)
         openRouterPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        openRouterPopup.autoenablesItems = false
         openRouterModelRow = makeRow(label: "Model", control: openRouterPopup)
         section.addArrangedSubview(openRouterModelRow)
-
-        catalogFilterField = makeTextField(value: "", placeholder: "Search the OpenRouter catalog", monospaced: false)
-        catalogFilterField.delegate = self
-        catalogRefreshButton = makeButton("Refresh", action: #selector(refreshCatalog))
-        let filterControl = NSStackView(views: [catalogFilterField, catalogRefreshButton])
-        filterControl.orientation = .horizontal
-        filterControl.alignment = .centerY
-        filterControl.spacing = 8
-
-        catalogTable = NSTableView()
-        catalogTable.headerView = nil
-        catalogTable.rowHeight = 36
-        catalogTable.intercellSpacing = NSSize(width: 0, height: 2)
-        catalogTable.backgroundColor = .clear
-        catalogTable.style = .inset
-        catalogTable.allowsEmptySelection = true
-        catalogTable.delegate = self
-        catalogTable.dataSource = self
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("model"))
-        column.resizingMask = .autoresizingMask
-        catalogTable.addTableColumn(column)
-        catalogScroll = NSScrollView()
-        catalogScroll.translatesAutoresizingMaskIntoConstraints = false
-        catalogScroll.hasVerticalScroller = true
-        catalogScroll.borderType = .bezelBorder
-        catalogScroll.documentView = catalogTable
-        catalogScroll.heightAnchor.constraint(equalToConstant: 170).isActive = true
         catalogStatusLabel = makeHelp("")
-
-        let catalogStack = NSStackView(views: [filterControl, catalogScroll, catalogStatusLabel])
-        catalogStack.orientation = .vertical
-        catalogStack.alignment = .width
-        catalogStack.spacing = 6
-        catalogRow = makeRow(label: "Or pick one", control: catalogStack)
-        section.addArrangedSubview(catalogRow)
-        catalogScroll.widthAnchor.constraint(equalTo: catalogStack.widthAnchor).isActive = true
+        section.addArrangedSubview(makeRow(label: "", control: catalogStatusLabel))
 
         directModelField = makeTextField(value: "", placeholder: "", monospaced: true)
         directModelField.delegate = self
@@ -247,9 +182,6 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         directModelField.action = #selector(directModelChanged)
         directModelRow = makeRow(label: "Model", control: directModelField)
         section.addArrangedSubview(directModelRow)
-
-        cloudSummaryLabel = makeHelp("")
-        section.addArrangedSubview(cloudSummaryLabel)
     }
 
     // MARK: Sync
@@ -308,7 +240,6 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         keyField.placeholderString = Self.keyPlaceholder(provider)
         keyLinkButton.title = "Get \(Self.providerTitle(provider).hasPrefix("O") ? "an" : "a") \(Self.providerTitle(provider)) key"
         keyLinkButton.isHidden = Self.keyPageURL(provider) == nil
-        checkKeyButton.isEnabled = ProviderKeyCheck.request(provider: provider, key: "x") != nil
         if let error = settings.credentialStorageError {
             setKeyStatus(error, tone: .warning)
         } else if keyStatusLabel.textColor != .systemGreen {
@@ -317,18 +248,18 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
 
         let isOpenRouter = provider == .openRouter
         openRouterModelRow.isHidden = !isOpenRouter
-        catalogRow.isHidden = !isOpenRouter
+        catalogStatusLabel.isHidden = !isOpenRouter
         directModelRow.isHidden = isOpenRouter
         if isOpenRouter {
             syncOpenRouterPopup()
-            refreshCatalogTable()
         } else {
             directModelField.stringValue = Self.directModel(provider, settings)
             directModelField.placeholderString = Self.directModelDefault(provider)
         }
-        cloudSummaryLabel.stringValue = "The Capsule uses: \(settings.setupSummary)"
     }
 
+    // Recommended first, then the current pick if it is something else, then the whole catalog
+    // grouped by vendor in submenus. Submenu items set the selection themselves.
     private func syncOpenRouterPopup() {
         openRouterPopup.removeAllItems()
         openRouterPopup.addItem(withTitle: Self.recommendedTitle)
@@ -342,6 +273,62 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
             openRouterPopup.lastItem?.representedObject = model
             openRouterPopup.selectItem(at: 1)
         }
+        openRouterPopup.menu?.addItem(.separator())
+        for group in Self.catalogGroups(catalogModels) {
+            let item = NSMenuItem(title: group.vendor, action: nil, keyEquivalent: "")
+            let submenu = NSMenu(title: group.vendor)
+            for model in group.models {
+                let entry = NSMenuItem(title: model.title + (model.supportsImages ? "  · Images" : ""),
+                    action: #selector(catalogItemChosen(_:)), keyEquivalent: "")
+                entry.target = self
+                entry.representedObject = model.id
+                entry.toolTip = model.id
+                submenu.addItem(entry)
+            }
+            item.submenu = submenu
+            openRouterPopup.menu?.addItem(item)
+        }
+        openRouterPopup.menu?.addItem(.separator())
+        let refresh = NSMenuItem(title: "Refresh catalog", action: #selector(refreshCatalog), keyEquivalent: "")
+        refresh.target = self
+        openRouterPopup.menu?.addItem(refresh)
+        if !isLoadingCatalog {
+            catalogStatusLabel.stringValue = catalogModels.isEmpty ? "The catalog hasn't loaded yet." : "\(catalogModels.count) models in the menu, grouped by vendor."
+            catalogStatusLabel.textColor = .tertiaryLabelColor
+        }
+    }
+
+    struct CatalogGroup: Equatable {
+        struct Model: Equatable { let id: String; let title: String; let supportsImages: Bool }
+        let vendor: String
+        let models: [Model]
+    }
+
+    // "AionLabs: Aion 3.5" groups under AionLabs; a name without a colon groups by its id prefix.
+    static func catalogGroups(_ models: [UserSettings.RemoteCatalogModel]) -> [CatalogGroup] {
+        var buckets: [String: [CatalogGroup.Model]] = [:]
+        for model in models {
+            let name = model.displayTitle
+            let vendor: String
+            let title: String
+            if let range = name.range(of: ": ") {
+                vendor = String(name[..<range.lowerBound])
+                title = String(name[range.upperBound...])
+            } else {
+                vendor = model.id.split(separator: "/").first.map(String.init) ?? "Other"
+                title = name
+            }
+            buckets[vendor, default: []].append(.init(id: model.id, title: title, supportsImages: model.supportsImages))
+        }
+        return buckets.keys.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }.map { vendor in
+            CatalogGroup(vendor: vendor, models: buckets[vendor]!.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending })
+        }
+    }
+
+    @objc private func catalogItemChosen(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        settings.openRouterSelection = .model(id)
+        syncCloud()
     }
 
     // MARK: Actions
@@ -378,8 +365,9 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         settings.fallbackToClaude = fallbackCheckbox.state == .on
     }
 
-    @objc private func toggleAdvanced() {
-        serverRow.isHidden.toggle()
+    @objc private func toggleMore() {
+        moreStack.isHidden.toggle()
+        moreButton.title = moreStack.isHidden ? "More options" : "Fewer options"
     }
 
     @objc private func serverChanged() {
@@ -400,28 +388,37 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
 
     @objc private func keyChanged() {
         settings.setAPIKey(keyField.stringValue, for: settings.cloudProvider)
+        settings.applyCloudSelection()
         if let error = settings.credentialStorageError {
             setKeyStatus(error, tone: .warning)
-        } else {
-            setKeyStatus(settings.hasAccess(to: settings.cloudProvider) ? "Saved in Keychain." : "", tone: .neutral)
+            return
         }
-        settings.applyCloudSelection()
-        cloudSummaryLabel.stringValue = "The Capsule uses: \(settings.setupSummary)"
+        scheduleKeyCheck()
     }
 
-    @objc private func checkKey() {
+    // Checks the key a moment after typing stops, with a free read-only request where the
+    // provider offers one. Nothing to press.
+    private func scheduleKeyCheck() {
+        keyCheckTask?.cancel()
         let provider = settings.cloudProvider
-        let key = keyField.stringValue
-        checkKeyButton.isEnabled = false
-        setKeyStatus("Checking...", tone: .neutral)
-        Task { @MainActor in
+        let key = keyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { setKeyStatus("", tone: .neutral); return }
+        guard ProviderKeyCheck.request(provider: provider, key: key) != nil else {
+            setKeyStatus("Saved in Keychain.", tone: .neutral)
+            return
+        }
+        setKeyStatus("Checking…", tone: .neutral)
+        keyCheckTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            guard !Task.isCancelled else { return }
             do {
                 let message = try await ProviderKeyCheck.check(provider: provider, key: key)
+                guard !Task.isCancelled else { return }
                 self.setKeyStatus(message, tone: .success)
             } catch {
+                guard !Task.isCancelled else { return }
                 self.setKeyStatus(error.localizedDescription, tone: .warning)
             }
-            self.checkKeyButton.isEnabled = true
         }
     }
 
@@ -449,9 +446,8 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         case .fal: settings.falModel = value
         default: break
         }
-        // Direct route IDs include the model name, so re-point both actions at the new one.
+        // Direct route IDs include the model name, so re-point the Capsule at the new one.
         settings.applyCloudSelection()
-        cloudSummaryLabel.stringValue = "The Capsule uses: \(settings.setupSummary)"
     }
 
     // MARK: Loading
@@ -485,86 +481,23 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
     private func loadCatalog() async {
         guard !isLoadingCatalog else { return }
         isLoadingCatalog = true
-        defer { isLoadingCatalog = false }
-        catalogRefreshButton.isEnabled = false
-        catalogStatusLabel.stringValue = "Loading OpenRouter models..."
+        catalogStatusLabel.stringValue = "Loading the OpenRouter catalog…"
         catalogStatusLabel.textColor = .tertiaryLabelColor
+        var failed = false
         do {
             let models = try await OpenRouterModelsAPI.shared.listModels()
             settings.remoteCatalogModels = models
             catalogModels = models
-            refreshCatalogTable()
         } catch {
             catalogModels = settings.remoteCatalogModels
-            refreshCatalogTable()
+            failed = true
+        }
+        isLoadingCatalog = false
+        syncOpenRouterPopup()
+        if failed {
             catalogStatusLabel.stringValue = "Couldn't refresh the catalog. Showing the saved list."
             catalogStatusLabel.textColor = .systemOrange
         }
-        catalogRefreshButton.isEnabled = true
-    }
-
-    private func refreshCatalogTable() {
-        guard catalogTable != nil else { return }
-        let query = catalogFilterField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        visibleCatalogModels = query.isEmpty ? catalogModels : catalogModels.filter {
-            $0.id.lowercased().contains(query) || $0.displayTitle.lowercased().contains(query)
-        }
-        isSelectingCatalogRow = true
-        catalogTable.reloadData()
-        if case .model(let selected) = settings.openRouterSelection,
-           let row = visibleCatalogModels.firstIndex(where: { $0.id == selected }) {
-            catalogTable.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-            catalogTable.scrollRowToVisible(row)
-        } else {
-            catalogTable.deselectAll(nil)
-        }
-        isSelectingCatalogRow = false
-        if visibleCatalogModels.isEmpty {
-            catalogStatusLabel.stringValue = catalogModels.isEmpty ? "No saved models. Click Refresh." : "No models match."
-        } else {
-            catalogStatusLabel.stringValue = "\(visibleCatalogModels.count) of \(catalogModels.count) models. Click one to use it for both actions."
-        }
-        catalogStatusLabel.textColor = .tertiaryLabelColor
-    }
-
-    // MARK: Table
-
-    func numberOfRows(in tableView: NSTableView) -> Int { visibleCatalogModels.count }
-
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard visibleCatalogModels.indices.contains(row) else { return nil }
-        let model = visibleCatalogModels[row]
-        let cell = NSTableCellView()
-        let textStack = NSStackView()
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        textStack.orientation = .vertical
-        textStack.alignment = .leading
-        textStack.spacing = 1
-        let title = NSTextField(labelWithString: model.displayTitle + (model.supportsImages ? "  · Images" : ""))
-        title.font = .systemFont(ofSize: 12, weight: .medium)
-        title.lineBreakMode = .byTruncatingTail
-        let slug = NSTextField(labelWithString: model.routeModel)
-        slug.font = .monospacedSystemFont(ofSize: 10.5, weight: .regular)
-        slug.textColor = .secondaryLabelColor
-        slug.lineBreakMode = .byTruncatingMiddle
-        textStack.addArrangedSubview(title)
-        textStack.addArrangedSubview(slug)
-        cell.addSubview(textStack)
-        NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
-            textStack.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-            textStack.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-        ])
-        return cell
-    }
-
-    func tableViewSelectionDidChange(_ notification: Notification) {
-        guard !isSelectingCatalogRow else { return }
-        let row = catalogTable.selectedRow
-        guard visibleCatalogModels.indices.contains(row) else { return }
-        settings.openRouterSelection = .model(visibleCatalogModels[row].id)
-        syncOpenRouterPopup()
-        cloudSummaryLabel.stringValue = "The Capsule uses: \(settings.setupSummary)"
     }
 
     // MARK: Text fields
@@ -572,7 +505,6 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
         if field === keyField { keyChanged() }
-        else if field === catalogFilterField { refreshCatalogTable() }
         else if field === directModelField { directModelChanged() }
         else if field === serverField { serverChanged() }
     }
@@ -746,8 +678,4 @@ final class ModelsSettingsPane: NSObject, NSTextFieldDelegate, NSTableViewDataSo
         default: return ""
         }
     }
-}
-
-private final class FlippedModelsDocumentView: NSView {
-    override var isFlipped: Bool { true }
 }

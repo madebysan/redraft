@@ -16,10 +16,10 @@ The rewrite replaces the selection and stays on the clipboard.
 Use your editor's normal Command-Z to undo a paste.
 
 SETTINGS
-Open Settings from Redraft's menu bar icon.
-Models holds the Local or Cloud choice, the Keychain-backed API key and the
-model. New installs use Gemini 3.5 Flash Lite through OpenRouter. Upgrades
-preserve saved model choices.
+Open Settings from Redraft's menu bar icon. It is one page: Local or Cloud,
+the Keychain-backed API key and the model, then the shortcut, launch at login
+and whether results are kept in History. New installs use Gemini 3.5 Flash
+Lite through OpenRouter. Upgrades preserve saved model choices.
 You need your own provider account/key; API usage is billed by the provider.
 
 UPGRADING
@@ -33,7 +33,7 @@ mounted disk images, or other folders. This disk image does not automatically
 quit or replace a running app.
 
 Saved provider/model choices, prompts, history, and Keychain keys are retained.
-To return to the tested model, choose Recommended in Settings > Models.
+To return to the tested model, choose Recommended under Cloud in Settings.
 If an old setup points to an unconfigured provider, reselect your provider
 and model in Settings. Installing an update does not supply missing API keys.
 If the shortcut or text replacement does not work, check System Settings >
@@ -41,7 +41,7 @@ Privacy & Security > Accessibility. If necessary, remove
 the stale Redraft entry, add the app from Applications, and relaunch it.
 
 Retired action presets from old versions are exported to a recovery file
-before removal; General can reveal it. If a selection cannot be verified or
+in Application Support > Companion > Recovery. If a selection cannot be verified or
 output is incomplete, Redraft copies the result to the clipboard instead of
 replacing the original and tells you to paste it.
 
