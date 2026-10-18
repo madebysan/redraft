@@ -2,6 +2,13 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.6] - 2026-10-18
+
+### Changed
+
+- App icon: the document lines are 10% larger inside the tile.
+- The menu bar menu is shorter. "Open Command Palette" is now "Redraft Selection" and shows the saved shortcut. "Status: Ready" is gone; a single line appears only while Accessibility is missing and opens System Settings. "Using: …" is now a Model submenu where Local and Cloud can be switched directly. Icons are removed and items regroup: use, configure, app, quit.
+
 ## [0.5.5] - 2026-10-18
 
 ### Changed

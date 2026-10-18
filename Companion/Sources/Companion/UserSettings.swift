@@ -556,6 +556,31 @@ final class UserSettings {
         }
     }
 
+    // Short label for the menu bar's Model submenu, one per mode.
+    func menuSummary(for mode: ModelMode) -> String {
+        switch mode {
+        case .local:
+            let model = lmStudioModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            return model.isEmpty ? "Local · no model" : "Local · \(model)"
+        case .cloud:
+            let model: String
+            switch cloudProvider {
+            case .openRouter:
+                switch openRouterSelection {
+                case .recommended: model = "Recommended"
+                case .model(let id): model = id
+                }
+            case .openAI: model = "\(cloudProvider.shortLabel) · \(openAIModel)"
+            case .claude: model = "\(cloudProvider.shortLabel) · \(claudeModel)"
+            case .deepSeek: model = "\(cloudProvider.shortLabel) · \(deepSeekModel)"
+            case .fal: model = "\(cloudProvider.shortLabel) · \(falModel)"
+            case .lmStudio: model = ""
+            }
+            let key = hasAccess(to: cloudProvider) ? "" : " · no key"
+            return "Cloud · \(model)\(key)"
+        }
+    }
+
     // One line for the menu bar: what the next rewrite will use.
     var setupSummary: String {
         switch modelMode {

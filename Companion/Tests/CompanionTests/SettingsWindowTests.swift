@@ -42,4 +42,28 @@ final class SettingsWindowTests: XCTestCase {
         defer { history.close() }
         XCTAssertEqual(history.window?.title, "Redraft History")
     }
+
+    @MainActor
+    func testMenuBarMenuIsUseConfigureAppQuitWithTheShortcutShown() {
+        let controller = StatusBarController(appDelegate: AppDelegate())
+        controller.setup()
+        defer { if let item = controller.statusItem { NSStatusBar.system.removeStatusItem(item) } }
+        let menu = try! XCTUnwrap(controller.statusItem?.menu)
+        let visible = menu.items.filter { !$0.isSeparatorItem && !$0.isHidden }.map(\.title)
+        XCTAssertEqual(visible.first, "Redraft Selection")
+        XCTAssertTrue(visible.contains { $0.hasPrefix("Model: ") })
+        let order = visible.filter { !$0.hasPrefix("Model: ") && $0 != "Check for Updates…" }
+        XCTAssertEqual(order, ["Redraft Selection", "History…", "Settings…", "About Redraft", "Quit Redraft"])
+        XCTAssertFalse(visible.contains { $0.hasPrefix("Status:") || $0.hasPrefix("Using:") || $0.contains("Palette") })
+        // macOS adds its own symbols to the standard Settings and Quit items; ours carry none.
+        let ours = menu.items.filter { ["Redraft Selection", "History…", "About Redraft"].contains($0.title) || $0.title.hasPrefix("Model: ") }
+        XCTAssertEqual(ours.count, 4)
+        XCTAssertTrue(ours.allSatisfy { $0.image == nil }, "no custom icons in the menu")
+        let rewrite = menu.items[0]
+        XCTAssertEqual(rewrite.keyEquivalent, "e")
+        XCTAssertEqual(rewrite.keyEquivalentModifierMask, [.command, .shift])
+        let model = try! XCTUnwrap(menu.items.first { $0.title.hasPrefix("Model: ") }?.submenu)
+        XCTAssertEqual(model.items.filter { !$0.isSeparatorItem }.map(\.title).last, "Change in Settings…")
+        XCTAssertEqual(model.items.filter { $0.state == .on }.count, 1, "exactly one mode is checked")
+    }
 }

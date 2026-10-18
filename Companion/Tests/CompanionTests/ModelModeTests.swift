@@ -97,6 +97,21 @@ final class ModelModeTests: XCTestCase {
         XCTAssertEqual(settings.cloudFallbackRoute, UserSettings.recommendedWritingRoute)
     }
 
+    func testMenuSummariesAreShortAndPerMode() {
+        let (settings, _) = makeSettings()
+        XCTAssertEqual(settings.menuSummary(for: .cloud), "Cloud · Recommended · no key")
+        XCTAssertEqual(settings.menuSummary(for: .local), "Local · no model")
+        settings.openRouterAPIKey = "test-only"
+        settings.lmStudioKnownModels = ["gemma-4-12b-it"]
+        settings.lmStudioModel = "gemma-4-12b-it"
+        XCTAssertEqual(settings.menuSummary(for: .cloud), "Cloud · Recommended")
+        XCTAssertEqual(settings.menuSummary(for: .local), "Local · gemma-4-12b-it")
+        settings.openRouterSelection = .model("x/b")
+        XCTAssertEqual(settings.menuSummary(for: .cloud), "Cloud · x/b")
+        settings.cloudProvider = .openAI
+        XCTAssertEqual(settings.menuSummary(for: .cloud), "Cloud · OpenAI · \(settings.openAIModel) · no key")
+    }
+
     func testKeyCheckRequestsAreReadOnlyAndCarryTheRightHeaders() throws {
         let openRouter = try XCTUnwrap(ProviderKeyCheck.request(provider: .openRouter, key: "k1"))
         XCTAssertEqual(openRouter.httpMethod, "GET")

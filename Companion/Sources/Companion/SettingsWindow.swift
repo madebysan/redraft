@@ -308,6 +308,11 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         if modifiers.contains(.option) { parts.append("Opt") }
         if modifiers.contains(.shift) { parts.append("Shift") }
         if modifiers.contains(.command) { parts.append("Cmd") }
+        parts.append(keyName(for: keyCode) ?? "Key(\(keyCode))")
+        return parts.joined(separator: " + ")
+    }
+
+    static func keyName(for keyCode: UInt16) -> String? {
         let letters: [Int: String] = [
             kVK_ANSI_A: "A", kVK_ANSI_B: "B", kVK_ANSI_C: "C", kVK_ANSI_D: "D", kVK_ANSI_E: "E", kVK_ANSI_F: "F",
             kVK_ANSI_G: "G", kVK_ANSI_H: "H", kVK_ANSI_I: "I", kVK_ANSI_J: "J", kVK_ANSI_K: "K", kVK_ANSI_L: "L",
@@ -315,8 +320,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
             kVK_ANSI_S: "S", kVK_ANSI_T: "T", kVK_ANSI_U: "U", kVK_ANSI_V: "V", kVK_ANSI_W: "W", kVK_ANSI_X: "X",
             kVK_ANSI_Y: "Y", kVK_ANSI_Z: "Z",
         ]
-        parts.append(letters[Int(keyCode)] ?? "Key(\(keyCode))")
-        return parts.joined(separator: " + ")
+        return letters[Int(keyCode)]
     }
 
     func windowWillClose(_ notification: Notification) {

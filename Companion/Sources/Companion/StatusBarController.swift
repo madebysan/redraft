@@ -3,11 +3,12 @@ import AppKit
 // Manages the menu bar icon and dropdown menu
 @MainActor
 final class StatusBarController: NSObject, NSMenuDelegate {
-    private var statusItem: NSStatusItem?
+    private(set) var statusItem: NSStatusItem?
     private weak var appDelegate: AppDelegate?
     private var animationTimer: Timer?
     private var statusMenuItem: NSMenuItem?
     private var setupMenuItem: NSMenuItem?
+    private var rewriteMenuItem: NSMenuItem?
     private var hasPermissionWarning = false
 
     init(appDelegate: AppDelegate) {
@@ -24,55 +25,41 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
 
-        // Manual trigger — same as the keyboard shortcut
-        let rewriteItem = NSMenuItem(title: "Open Command Palette", action: #selector(triggerRewrite), keyEquivalent: "")
-        rewriteItem.target = self
-        menu.addItem(rewriteItem)
+        // The same thing as the shortcut; its key equivalent mirrors the saved shortcut.
+        rewriteMenuItem = NSMenuItem(title: "Redraft Selection", action: #selector(triggerRewrite), keyEquivalent: "")
+        rewriteMenuItem?.target = self
+        menu.addItem(rewriteMenuItem!)
+        syncShortcutEquivalent()
 
         menu.addItem(NSMenuItem.separator())
 
-        // Status indicator
-        let allPermissionsOK = Permissions.isGranted
-        let statusTitle = allPermissionsOK ? "Status: Ready" : "Status: Missing Permissions"
-        statusMenuItem = NSMenuItem(title: statusTitle, action: allPermissionsOK ? nil : #selector(AppDelegate.openSettings), keyEquivalent: "")
-        statusMenuItem?.target = allPermissionsOK ? nil : appDelegate
-        statusMenuItem?.isEnabled = !allPermissionsOK
-        if !allPermissionsOK {
-            statusMenuItem?.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Warning")
-            statusMenuItem?.image?.isTemplate = true
-        }
+        // Shown only while Accessibility is missing; everything else is hidden behind the icon.
+        statusMenuItem = NSMenuItem(title: "Accessibility needed. Open System Settings…",
+            action: #selector(openAccessibilitySettings), keyEquivalent: "")
+        statusMenuItem?.target = self
+        statusMenuItem?.isHidden = Permissions.isGranted
         menu.addItem(statusMenuItem!)
 
-        // What the next rewrite will use. Click to change it.
-        setupMenuItem = NSMenuItem(title: "Using: \(UserSettings.shared.setupSummary)",
-            action: #selector(AppDelegate.openSettings), keyEquivalent: "")
-        setupMenuItem?.target = appDelegate
-        setupMenuItem?.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
-        setupMenuItem?.image?.isTemplate = true
+        // Local or Cloud, switchable here; details live in Settings.
+        setupMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        setupMenuItem?.submenu = NSMenu(title: "Model")
         menu.addItem(setupMenuItem!)
+        syncModelMenu()
 
-        menu.addItem(NSMenuItem.separator())
-
-        let settingsItem = NSMenuItem(
-            title: "Settings...",
-            action: #selector(AppDelegate.openSettings),
-            keyEquivalent: ","
-        )
-        settingsItem.target = appDelegate
-        menu.addItem(settingsItem)
-
-        let historyItem = NSMenuItem(title: "History...", action: #selector(AppDelegate.openHistory), keyEquivalent: "")
+        let historyItem = NSMenuItem(title: "History…", action: #selector(AppDelegate.openHistory), keyEquivalent: "")
         historyItem.target = appDelegate
         menu.addItem(historyItem)
 
-        let aboutItem = NSMenuItem(
-            title: "About Redraft",
-            action: #selector(AppDelegate.openAbout),
-            keyEquivalent: ""
-        )
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(AppDelegate.openSettings), keyEquivalent: ",")
+        settingsItem.target = appDelegate
+        menu.addItem(settingsItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        if let updates = Updates.menuItem() { menu.addItem(updates) }
+        let aboutItem = NSMenuItem(title: "About Redraft", action: #selector(AppDelegate.openAbout), keyEquivalent: "")
         aboutItem.target = appDelegate
         menu.addItem(aboutItem)
-        if let updates = Updates.menuItem() { menu.addItem(updates) }
 
         menu.addItem(NSMenuItem.separator())
 
@@ -86,7 +73,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         statusItem?.menu = menu
 
         // Show warning icon if permissions missing on launch
-        if !allPermissionsOK {
+        if !Permissions.isGranted {
             hasPermissionWarning = true
             if let button = statusItem?.button {
                 setWarningIcon(button)
@@ -104,7 +91,55 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     nonisolated func menuWillOpen(_ menu: NSMenu) {
         Task { @MainActor in
             self.showPermissionWarning(!Permissions.isGranted)
-            self.setupMenuItem?.title = "Using: \(UserSettings.shared.setupSummary)"
+            self.syncModelMenu()
+            self.syncShortcutEquivalent()
+        }
+    }
+
+    private func syncShortcutEquivalent() {
+        let settings = UserSettings.shared
+        if let keyCode = settings.shortcutKeyCode, let modifiers = settings.shortcutModifiers,
+           let name = SettingsWindow.keyName(for: UInt16(keyCode)) {
+            rewriteMenuItem?.keyEquivalent = name.lowercased()
+            rewriteMenuItem?.keyEquivalentModifierMask = NSEvent.ModifierFlags(rawValue: modifiers)
+                .intersection([.command, .shift, .option, .control])
+        } else {
+            rewriteMenuItem?.keyEquivalent = "e"
+            rewriteMenuItem?.keyEquivalentModifierMask = [.command, .shift]
+        }
+    }
+
+    private func syncModelMenu() {
+        let settings = UserSettings.shared
+        setupMenuItem?.title = "Model: \(settings.menuSummary(for: settings.modelMode))"
+        guard let submenu = setupMenuItem?.submenu else { return }
+        submenu.removeAllItems()
+        for mode in UserSettings.ModelMode.allCases {
+            let item = NSMenuItem(title: settings.menuSummary(for: mode), action: #selector(chooseMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = settings.modelMode == mode ? .on : .off
+            if mode == .local, settings.lmStudioKnownModels.isEmpty, settings.modelMode != .local {
+                item.title = "Local · set up in Settings"
+                item.isEnabled = false
+            }
+            submenu.addItem(item)
+        }
+        submenu.addItem(.separator())
+        let change = NSMenuItem(title: "Change in Settings…", action: #selector(AppDelegate.openSettings), keyEquivalent: "")
+        change.target = appDelegate
+        submenu.addItem(change)
+    }
+
+    @objc private func chooseMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let mode = UserSettings.ModelMode(rawValue: raw) else { return }
+        UserSettings.shared.modelMode = mode
+        syncModelMenu()
+    }
+
+    @objc private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
 
@@ -112,21 +147,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         hasPermissionWarning = show
         guard let button = statusItem?.button else { return }
 
-        if show {
-            setWarningIcon(button)
-            statusMenuItem?.title = "Status: Missing Permissions"
-            statusMenuItem?.action = #selector(AppDelegate.openSettings)
-            statusMenuItem?.target = appDelegate
-            statusMenuItem?.isEnabled = true
-            statusMenuItem?.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Warning")
-            statusMenuItem?.image?.isTemplate = true
-        } else {
-            setDefaultIcon(button)
-            statusMenuItem?.title = "Status: Ready"
-            statusMenuItem?.action = nil
-            statusMenuItem?.isEnabled = false
-            statusMenuItem?.image = nil
-        }
+        statusMenuItem?.isHidden = !show
+        if show { setWarningIcon(button) } else { setDefaultIcon(button) }
     }
 
 
