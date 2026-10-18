@@ -11,7 +11,7 @@ To test it:
 4. Open TextEdit, type a sentence with a typo, select it, press ⌘⇧E.
 5. Type an instruction such as "fix grammar" or "make this formal" and press Return.
 6. With a cloud key, the first time Redraft asks before sending text to that provider (guideline 5.1.2(i)). Click Allow.
-7. The selection is replaced. ⌘Z in TextEdit undoes it. History is in the menu bar menu → Settings... → History.
+7. The selection is replaced. ⌘Z in TextEdit undoes it. History is in the menu bar menu → History…
 
 Without a model or key, steps 2–4 still work and the panel explains that a model must be chosen in Settings.
 
