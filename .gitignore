@@ -9,12 +9,10 @@ Companion/.release/
 DerivedData/
 .DS_Store
 *.dmg
-plan.md
 
 # Local agent state, audit notes, and session artifacts
 .codex/
 .claude/
-CODE-QUALITY.md
 _archived/
 *.log
 
