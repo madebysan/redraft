@@ -25,14 +25,32 @@ final class OpenRouterAPI {
             "require_parameters": true,
             "max_price": ["prompt": 0.30, "completion": isGeminiLite ? 2.50 : 1.20]
         ] : nil
-        return try await client.complete(
-            text, systemPrompt: systemPrompt, providerName: "OpenRouter",
-            endpoint: URL(string: "https://openrouter.ai/api/v1/chat/completions")!,
-            apiKey: key, authorizationHeader: "Bearer \(key)", model: model, images: images,
-            disableReasoning: true,
-            reasoningEffort: isGeminiLite ? "minimal" : nil,
-            providerPreferences: speedPreferences,
-            webSearch: webSearch
-        )
+        // Some models (Gemini 3.8 Flash, for one) refuse requests that turn reasoning off.
+        // Retry those once with the lowest common effort and hidden reasoning, then remember the model.
+        let reasoningRequired = isGeminiLite || Self.reasoningLock.withLock { Self.reasoningRequiredModels.contains(canonicalModel) }
+        func send(reasoningEffort: String?) async throws -> TextCompletion {
+            try await client.complete(
+                text, systemPrompt: systemPrompt, providerName: "OpenRouter",
+                endpoint: URL(string: "https://openrouter.ai/api/v1/chat/completions")!,
+                apiKey: key, authorizationHeader: "Bearer \(key)", model: model, images: images,
+                disableReasoning: true,
+                reasoningEffort: reasoningEffort,
+                providerPreferences: speedPreferences,
+                webSearch: webSearch
+            )
+        }
+        if reasoningRequired {
+            return try await send(reasoningEffort: isGeminiLite ? "minimal" : "low")
+        }
+        do {
+            return try await send(reasoningEffort: nil)
+        } catch OpenAICompatibleAPI.APIError.requestFailed(_, let message)
+            where message.localizedCaseInsensitiveContains("reasoning is mandatory") {
+            Self.reasoningLock.withLock { _ = Self.reasoningRequiredModels.insert(canonicalModel) }
+            return try await send(reasoningEffort: "low")
+        }
     }
+
+    private static let reasoningLock = NSLock()
+    private static var reasoningRequiredModels: Set<String> = []
 }

@@ -43,6 +43,14 @@ final class OpenRouterRequestTests: XCTestCase {
         XCTAssertEqual(body["model"] as? String, "google/gemma-3-12b-it")
     }
 
+    func testModelThatRequiresReasoningIsRetriedWithLowEffort() async throws {
+        let body = try await requestBody(model: "test/reasoning-mandatory")
+        let reasoning = try XCTUnwrap(body["reasoning"] as? [String: Any])
+        XCTAssertEqual(reasoning["effort"] as? String, "low")
+        XCTAssertEqual(reasoning["exclude"] as? Bool, true)
+        XCTAssertNil(reasoning["enabled"])
+    }
+
     private func requestBody(model: String, webSearch: Bool = false) async throws -> [String: Any] {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [RewriteRequestProtocol.self]
@@ -69,6 +77,15 @@ private final class RewriteRequestProtocol: URLProtocol {
                     if count <= 0 { break }
                     body.append(contentsOf: buffer.prefix(count))
                 }
+            }
+            let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+            if json?["model"] as? String == "test/reasoning-mandatory",
+               (json?["reasoning"] as? [String: Any])?["enabled"] as? Bool == false {
+                let error = try JSONSerialization.data(withJSONObject: ["error": ["message": "Reasoning is mandatory for this endpoint and cannot be disabled.", "code": 400]])
+                client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: error)
+                client?.urlProtocolDidFinishLoading(self)
+                return
             }
             let responseBody: [String: Any] = ["choices": [["finish_reason": "stop", "message": ["content": String(decoding: body, as: UTF8.self),
                 "annotations": [["type": "url_citation", "url_citation": ["url": "https://example.com", "title": "Test"]]]]]]]
