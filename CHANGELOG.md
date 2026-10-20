@@ -2,6 +2,12 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.7] - 2026-10-20
+
+### Fixed
+
+- OpenRouter models that require reasoning, such as Gemini 3.8 Flash, no longer fail with "HTTP 400: Reasoning is mandatory for this endpoint and cannot be disabled." Redraft retries them once with low reasoning effort and hides the reasoning, then remembers the model for the rest of the session.
+
 ## [0.5.6] - 2026-10-18
 
 ### Changed
