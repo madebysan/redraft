@@ -2,6 +2,12 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.9] - 2026-10-21
+
+### Changed
+
+- New app icon: an owl in reading glasses holding a page with an orange line, matching the menu bar owl. It replaces the white document icon in the Dock, Finder and App Store.
+
 ## [0.5.8] - 2026-10-21
 
 ### Changed
