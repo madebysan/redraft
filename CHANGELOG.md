@@ -2,6 +2,12 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.8] - 2026-10-21
+
+### Changed
+
+- The menu bar icon is an owl in reading glasses instead of the magnifying glass. While Redraft rewrites, the owl's eyes move left and right, replacing the three-dot animation.
+
 ## [0.5.7] - 2026-10-20
 
 ### Fixed

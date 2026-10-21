@@ -5,7 +5,7 @@
 <p>Writing Tools for every Mac, including Intel and macOS 13.<br>
 Select text in any app, type what to change, and it's replaced in place.</p>
 
-<p><strong>Version 0.5.6</strong> · macOS 13+ · Apple Silicon & Intel</p>
+<p><strong>Version 0.5.8</strong> · macOS 13+ · Apple Silicon & Intel</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">

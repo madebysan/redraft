@@ -157,12 +157,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func setDefaultIcon(_ button: NSStatusBarButton) {
-        if let image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Redraft") {
-            image.isTemplate = true
-            button.image = image
-        } else {
-            button.title = "R"
-        }
+        button.image = OwlIcon.image()
     }
 
     private func setWarningIcon(_ button: NSStatusBarButton) {
@@ -194,17 +189,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func startAnimation(_ button: NSStatusBarButton) {
-        // Cycle through ellipsis-style SF Symbols to show activity
-        let frames = ["ellipsis", "ellipsis.circle", "ellipsis.circle.fill"]
+        // The owl reads: its pupils sweep left and right while the rewrite runs.
+        let frames = [-1.2, 0, 1.2, 0].map { OwlIcon.image(pupilShift: $0, accessibilityDescription: "Rewriting...") }
         var frameIndex = 0
 
         animationTimer?.invalidate()
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
             guard self != nil else { return }
-            if let image = NSImage(systemSymbolName: frames[frameIndex % frames.count], accessibilityDescription: "Rewriting...") {
-                image.isTemplate = true
-                button.image = image
-            }
+            button.image = frames[frameIndex % frames.count]
             frameIndex += 1
         }
     }
