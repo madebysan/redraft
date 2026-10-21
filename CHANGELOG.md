@@ -34,7 +34,7 @@ All notable changes to Redraft (formerly Companion) are documented here.
 
 ### Added
 
-- A Mac App Store edition, built from the same code with `REDRAFT_APP_STORE=1` (`script/build_app_store.sh`). It runs in the App Sandbox, so it checks the selection by copying it again before pasting instead of using the Accessibility API, asks once per cloud provider before sending any text, keeps its keys in its own Keychain entry, and gets updates from the App Store instead of Sparkle. Submitted for review on 2026-10-16 as "Redraft for Mac". The DMG edition is unchanged.
+- A Mac App Store edition, built from the same code. It runs in the App Sandbox, so it checks the selection by copying it again before pasting instead of using the Accessibility API, asks once per cloud provider before sending any text, keeps its keys in its own Keychain entry, and gets updates from the App Store instead of Sparkle. The DMG edition is unchanged.
 
 ### Changed
 
@@ -94,7 +94,6 @@ All notable changes to Redraft (formerly Companion) are documented here.
 - Quit the previous app before replacing it in Applications. Saved model choices, prompts, keys, and history remain intact.
 - Use Providers → Use recommended models to adopt the new model pair explicitly.
 - Other Macs need their own key and permissions; permissions may need re-granting after an update.
-- Universal app and DMG signed, notarized, and stapled. Forty-six offline tests passed; an opt-in live search test passed separately.
 - Search grounding does not guarantee accuracy, and percentage-length instructions remain approximate.
 
 ## [0.3.1] - 2026-09-17
@@ -116,7 +115,7 @@ All notable changes to Redraft (formerly Companion) are documented here.
 - Reduced loading, completion, and error feedback to small indicators; retained keyboard navigation and Reduce Motion support.
 - Replaced the saved-action editor with Writing settings. Grammar and macOS Services now share one prompt and model configuration.
 - Added direct OpenRouter support and paid DeepSeek V4.1 Flash as the writing default and explicit local-model fallback.
-- Moved API keys into Keychain with verified migration.
+- API keys are stored in Keychain; existing keys move over automatically.
 - Moved history saves off the UI thread and preserved older records while displaying the latest 500.
 
 ### Fixed
@@ -154,8 +153,4 @@ Initial public release.
 - Per-action model routing, local-to-remote fallback, and local generated-result history.
 - Image attachments for routes that support image input.
 - Settings panes for providers, actions, history, shortcut, and macOS permissions.
-
-### Release
-
-- Published `Companion-0.2.2.dmg`.
-- Signed, notarized, stapled, and verified the app and DMG.
+- Signed and notarized DMG.

@@ -1,6 +1,0 @@
-App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
-Subject: a miniature night scene: an open notebook on a wooden desk under a warm reading lamp, with a small fountain pen floating beside the page, neatly rewriting one line that glows softly. The writing is abstract strokes with no readable letters. Centered, filling about 70% of the canvas.
-Style: miniature illustrated scene, cinematic lighting, depth and atmosphere, rich but readable silhouette. Palette: deep navy night, warm orange #FF6B3D lamplight.
-Bold, simple silhouette that stays readable at small sizes.
-No text. No UI screenshots, no logos, no device mockups.
-The reference images define rendering, material, lighting and palette only. Do not copy their subjects.

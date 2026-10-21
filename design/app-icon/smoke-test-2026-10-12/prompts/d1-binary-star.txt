@@ -1,6 +1,0 @@
-App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
-Subject: a binary star: one large glowing orb of warm light with a much smaller companion star close beside it, linked by a faint curved orbit trail. Centered, filling about 70% of the canvas.
-Style: near-black background, emissive light glowing from within, soft bloom, a subtle chrome or glass rim catching the light, cinematic contrast. Palette: near-black #111111 with warm orange #FF6B3D to amber light.
-Bold, simple silhouette that stays readable at small sizes.
-No text. No UI screenshots, no logos, no device mockups.
-The reference images define rendering, material, lighting and palette only. Do not copy their subjects.

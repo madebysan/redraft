@@ -1,6 +1,0 @@
-App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
-Subject: a small round friendly bird perched on top of a tall text-cursor I-beam, keeping the writer company. Centered, filling about 70% of the canvas.
-Style: soft matte clay render, rounded toy-like forms, pastel palette, soft ambient light. Palette: pastel peach background, bird in orange #FF6B3D with a cream belly, charcoal I-beam.
-Bold, simple silhouette that stays readable at small sizes.
-No text. No UI screenshots, no logos, no device mockups.
-The reference images define rendering, material, lighting and palette only. Do not copy their subjects.

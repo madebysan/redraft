@@ -1,6 +1,0 @@
-App icon artwork, square 1:1, full-bleed background, no rounded corners, no border, no outer drop shadow.
-Subject: a chunky correction-tape dispenser rolling a clean white strip over a line of dark text on a paper card; the text is abstract dark bars with no readable letters, and the tape has covered half of the line. Centered, filling about 70% of the canvas.
-Style: tactile 3D illustrated object, warm natural materials (glossy orange plastic shell, paper card, brushed metal wheel), soft studio lighting, gentle contact shadows, high craft, Big Sur era macOS icon finish. Palette: orange #FF6B3D shell, warm off-white paper, charcoal bars, soft warm background.
-Bold, simple silhouette that stays readable at small sizes.
-No text. No UI screenshots, no logos, no device mockups.
-The reference images define rendering, material, lighting and palette only. Do not copy their subjects.
