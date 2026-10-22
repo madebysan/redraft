@@ -2,6 +2,12 @@
 
 All notable changes to Redraft (formerly Companion) are documented here.
 
+## [0.5.10] - 2026-10-21
+
+### Changed
+
+- At the smallest sizes, such as Finder list view, the app icon shows a simple owl face in glasses instead of the full owl, which blurred into a brown blob.
+
 ## [0.5.9] - 2026-10-21
 
 ### Changed
